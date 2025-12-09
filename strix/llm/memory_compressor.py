@@ -1,6 +1,7 @@
 import logging
 import os
 from typing import Any
+from strix.tools import is_images_disabled
 
 import litellm
 
@@ -125,6 +126,18 @@ def _summarize_messages(
 
 
 def _handle_images(messages: list[dict[str, Any]], max_images: int) -> None:
+    # Check if images are disabled
+    if is_images_disabled():
+        # Remove all images when disabled
+        for msg in messages:
+            content = msg.get("content", [])
+            if isinstance(content, list):
+                msg["content"] = [
+                    item for item in content
+                    if not (isinstance(item, dict) and item.get("type") == "image_url")
+                ]
+        return
+    
     image_count = 0
     for msg in reversed(messages):
         content = msg.get("content", [])
