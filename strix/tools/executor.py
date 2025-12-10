@@ -177,7 +177,6 @@ def _update_tracer_with_result(
 def _format_tool_result(tool_name: str, result: Any) -> tuple[str, list[dict[str, Any]]]:
     images: list[dict[str, Any]] = []
     
-    # Import here to avoid circular import
     from strix.tools import is_images_disabled
     
     if not is_images_disabled():

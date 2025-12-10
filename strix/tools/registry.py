@@ -6,7 +6,7 @@ from functools import wraps
 from inspect import signature
 from pathlib import Path
 from typing import Any
- 
+
 
 tools: list[dict[str, Any]] = []
 _tools_by_name: dict[str, Callable[..., Any]] = {}
@@ -169,7 +169,6 @@ def should_execute_in_sandbox(tool_name: str) -> bool:
 
 
 def get_tools_prompt() -> str:
-    # Import here to avoid circular import
     try:
         from strix.tools import is_images_disabled
         images_disabled = is_images_disabled()

@@ -126,9 +126,7 @@ def _summarize_messages(
 
 
 def _handle_images(messages: list[dict[str, Any]], max_images: int) -> None:
-    # Check if images are disabled
     if is_images_disabled():
-        # Remove all images when disabled
         for msg in messages:
             content = msg.get("content", [])
             if isinstance(content, list):

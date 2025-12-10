@@ -20,7 +20,6 @@ class LLMConfig:
 
         self.timeout = timeout or int(os.getenv("LLM_TIMEOUT", "300"))
         
-        # Check environment variable if not explicitly set
         if disable_images is None:
             self.disable_images = os.getenv("STRIX_DISABLE_IMAGES", "false").lower() == "true"
         else:
