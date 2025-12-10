@@ -1,9 +1,10 @@
 import logging
 import os
 from typing import Any
-from strix.tools import is_images_disabled
 
 import litellm
+
+from strix.tools import is_images_disabled
 
 
 logger = logging.getLogger(__name__)
@@ -131,11 +132,12 @@ def _handle_images(messages: list[dict[str, Any]], max_images: int) -> None:
             content = msg.get("content", [])
             if isinstance(content, list):
                 msg["content"] = [
-                    item for item in content
+                    item
+                    for item in content
                     if not (isinstance(item, dict) and item.get("type") == "image_url")
                 ]
         return
-    
+
     image_count = 0
     for msg in reversed(messages):
         content = msg.get("content", [])

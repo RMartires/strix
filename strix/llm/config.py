@@ -19,7 +19,7 @@ class LLMConfig:
         self.prompt_modules = prompt_modules or []
 
         self.timeout = timeout or int(os.getenv("LLM_TIMEOUT", "300"))
-        
+
         if disable_images is None:
             self.disable_images = os.getenv("STRIX_DISABLE_IMAGES", "false").lower() == "true"
         else:

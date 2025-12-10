@@ -171,15 +171,16 @@ def should_execute_in_sandbox(tool_name: str) -> bool:
 def get_tools_prompt() -> str:
     try:
         from strix.tools import is_images_disabled
+
         images_disabled = is_images_disabled()
     except ImportError:
         images_disabled = False
-    
+
     tools_by_module: dict[str, list[dict[str, Any]]] = {}
     for tool in tools:
         if images_disabled and tool.get("module") == "browser":
             continue
-            
+
         module = tool.get("module", "unknown")
         if module not in tools_by_module:
             tools_by_module[module] = []

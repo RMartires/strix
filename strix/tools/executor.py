@@ -176,9 +176,9 @@ def _update_tracer_with_result(
 
 def _format_tool_result(tool_name: str, result: Any) -> tuple[str, list[dict[str, Any]]]:
     images: list[dict[str, Any]] = []
-    
+
     from strix.tools import is_images_disabled
-    
+
     if not is_images_disabled():
         screenshot_data = extract_screenshot_from_result(result)
         if screenshot_data:
