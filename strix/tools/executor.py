@@ -177,22 +177,17 @@ def _update_tracer_with_result(
 def _format_tool_result(tool_name: str, result: Any) -> tuple[str, list[dict[str, Any]]]:
     images: list[dict[str, Any]] = []
 
-    from strix.tools import is_images_disabled
-
-    if not is_images_disabled():
-        screenshot_data = extract_screenshot_from_result(result)
-        if screenshot_data:
-            images.append(
-                {
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/png;base64,{screenshot_data}"},
-                }
-            )
-            result_str = remove_screenshot_from_result(result)
-        else:
-            result_str = result
+    screenshot_data = extract_screenshot_from_result(result)
+    if screenshot_data:
+        images.append(
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/png;base64,{screenshot_data}"},
+            }
+        )
+        result_str = remove_screenshot_from_result(result)
     else:
-        result_str = remove_screenshot_from_result(result) if isinstance(result, dict) else result
+        result_str = result
 
     if result_str is None:
         final_result_str = f"Tool {tool_name} executed successfully"

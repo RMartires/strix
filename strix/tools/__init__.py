@@ -24,15 +24,12 @@ SANDBOX_MODE = os.getenv("STRIX_SANDBOX_MODE", "false").lower() == "true"
 
 HAS_PERPLEXITY_API = bool(os.getenv("PERPLEXITY_API_KEY"))
 
-
-def is_images_disabled() -> bool:
-    return os.getenv("STRIX_DISABLE_IMAGES", "false").lower() == "true"
-
+DISABLE_BROWSER = os.getenv("STRIX_DISABLE_BROWSER", "false").lower() == "true"
 
 if not SANDBOX_MODE:
     from .agents_graph import *  # noqa: F403
 
-    if not is_images_disabled():
+    if not DISABLE_BROWSER:
         from .browser import *  # noqa: F403
     from .file_edit import *  # noqa: F403
     from .finish import *  # noqa: F403
@@ -47,7 +44,7 @@ if not SANDBOX_MODE:
     if HAS_PERPLEXITY_API:
         from .web_search import *  # noqa: F403
 else:
-    if not is_images_disabled():
+    if not DISABLE_BROWSER:
         from .browser import *  # noqa: F403
     from .file_edit import *  # noqa: F403
     from .proxy import *  # noqa: F403
@@ -63,7 +60,6 @@ __all__ = [
     "get_tool_by_name",
     "get_tool_names",
     "get_tools_prompt",
-    "is_images_disabled",
     "needs_agent_state",
     "process_tool_invocations",
     "register_tool",

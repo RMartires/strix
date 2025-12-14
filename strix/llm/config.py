@@ -8,7 +8,6 @@ class LLMConfig:
         enable_prompt_caching: bool = True,
         prompt_modules: list[str] | None = None,
         timeout: int | None = None,
-        disable_images: bool | None = None,
     ):
         self.model_name = model_name or os.getenv("STRIX_LLM", "openai/gpt-5")
 
@@ -19,8 +18,3 @@ class LLMConfig:
         self.prompt_modules = prompt_modules or []
 
         self.timeout = timeout or int(os.getenv("LLM_TIMEOUT", "300"))
-
-        if disable_images is None:
-            self.disable_images = os.getenv("STRIX_DISABLE_IMAGES", "false").lower() == "true"
-        else:
-            self.disable_images = disable_images

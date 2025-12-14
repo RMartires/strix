@@ -211,13 +211,7 @@ export LLM_API_KEY="your-api-key"
 # Optional
 export LLM_API_BASE="your-api-base-url"  # if using a local model, e.g. Ollama, LMStudio
 export PERPLEXITY_API_KEY="your-api-key"  # for search capabilities
-export STRIX_DISABLE_IMAGES="true"  # disable image/vision features for non-vision LLMs
 ```
-
-**Disabling Image Features**: If you're using an LLM that doesn't support images/vision (e.g., some local models), set `STRIX_DISABLE_IMAGES=true`. This will:
-- Disable browser automation tools (which rely on screenshots)
-- Skip adding screenshots to LLM messages
-- Improve performance and reduce costs for non-vision models
 
 [OpenAI's GPT-5](https://openai.com/api/) (`openai/gpt-5`) and [Anthropic's Claude Sonnet 4.5](https://claude.com/platform/api) (`anthropic/claude-sonnet-4-5`) are the recommended models for best results with Strix. We also support many [other options](https://docs.litellm.ai/docs/providers), including cloud and local models, though their performance and reliability may vary.
 
