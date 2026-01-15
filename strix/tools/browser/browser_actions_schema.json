@@ -1,0 +1,151 @@
+{
+  "tools": [
+    {
+      "name": "browser_action",
+      "description": "Perform browser actions using a Playwright-controlled browser with multiple tabs.\nThe browser is PERSISTENT and remains active until explicitly closed, allowing for\nmulti-step workflows and long-running processes across multiple tabs.",
+      "parameters": [
+        {
+          "name": "action",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "required": false,
+          "description": "Required for 'launch', 'goto', and optionally for 'new_tab' actions. The URL to launch the browser at, navigate to, or load in new tab. Must include appropriate protocol (e.g., http://, https://, file://)."
+        },
+        {
+          "name": "coordinate",
+          "type": "string",
+          "required": false,
+          "description": "Required for 'click', 'double_click', and 'hover' actions. Format: \"x,y\" (e.g., \"432,321\"). Coordinates should target the center of elements (buttons, links, etc.). Must be within the browser viewport resolution. Be very careful to calculate the coordinates correctly based on the previous screenshot."
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "required": false,
+          "description": "Required for 'type' action. The text to type in the field."
+        },
+        {
+          "name": "tab_id",
+          "type": "string",
+          "required": false,
+          "description": "Required for 'switch_tab' and 'close_tab' actions. Optional for other actions to specify which tab to operate on. The ID of the tab to operate on. The first tab created during 'launch' has ID \"tab_1\". If not provided, actions will operate on the currently active tab."
+        },
+        {
+          "name": "js_code",
+          "type": "string",
+          "required": false,
+          "description": "Required for 'execute_js' action. JavaScript code to execute in the page context. The code runs in the context of the current page and has access to the DOM and all page-defined variables and functions. The last evaluated expression's value is returned in the response."
+        },
+        {
+          "name": "duration",
+          "type": "string",
+          "required": false,
+          "description": "Required for 'wait' action. Number of seconds to pause execution. Can be fractional (e.g., 0.5 for half a second)."
+        },
+        {
+          "name": "key",
+          "type": "string",
+          "required": false,
+          "description": "Required for 'press_key' action. The key to press. Valid values include: - Single characters: 'a'-'z', 'A'-'Z', '0'-'9' - Special keys: 'Enter', 'Escape', 'ArrowLeft', 'ArrowRight', etc. - Modifier keys: 'Shift', 'Control', 'Alt', 'Meta' - Function keys: 'F1'-'F12'"
+        },
+        {
+          "name": "file_path",
+          "type": "string",
+          "required": false,
+          "description": "Required for 'save_pdf' action. The file path where to save the PDF."
+        },
+        {
+          "name": "clear",
+          "type": "boolean",
+          "required": false,
+          "description": "For 'get_console_logs' action: whether to clear console logs after retrieving them. Default is False (keep logs)."
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing: - screenshot: Base64 encoded PNG of the current page state - url: Current page URL - title: Current page title - viewport: Current browser viewport dimensions - tab_id: ID of the current active tab - all_tabs: Dict of all open tab IDs and their URLs - message: Status message about the action performed - js_result: Result of JavaScript execution (for execute_js action) - pdf_saved: File path of saved PDF (for save_pdf action) - console_logs: Array of console messages (for get_console_logs action) Limited to 50KB total and 200 most recent logs. Individual messages truncated at 1KB. - page_source: HTML source code (for view_source action) Large pages are truncated to 100KB (keeping beginning and end sections)."
+      },
+      "notes": "Important usage rules:\n1. PERSISTENCE: The browser remains active and maintains its state until\n   explicitly closed with the 'close' action. This allows for multi-step workflows\n   across multiple tool calls and tabs.\n2. Browser interaction MUST start with 'launch' and end with 'close'.\n3. Only one action can be performed per call.\n4. To visit a new URL not reachable from current page, either:\n   - Use 'goto' action\n   - Open a new tab with the URL\n   - Close browser and relaunch\n5. Click coordinates must be derived from the most recent screenshot.\n6. You MUST click on the center of the element, not the edge. You MUST calculate\n   the coordinates correctly based on the previous screenshot, otherwise the click\n   will fail. After clicking, check the new screenshot to verify the click was\n   successful.\n7. Tab management:\n   - First tab from 'launch' is \"tab_1\"\n   - New tabs are numbered sequentially (\"tab_2\", \"tab_3\", etc.)\n   - Must have at least one tab open at all times\n   - Actions affect the currently active tab unless tab_id is specified\n8. JavaScript execution (following Playwright evaluation patterns):\n   - Code runs in the browser page context, not the tool context\n   - Has access to DOM (document, window, etc.) and page variables/functions\n   - The LAST EVALUATED EXPRESSION is automatically returned - no return statement needed\n   - For simple values: document.title (returns the title)\n   - For objects: {title: document.title, url: location.href} (returns the object)\n   - For async operations: Use await and the promise result will be returned\n   - AVOID explicit return statements - they can break evaluation\n   - object literals must be wrapped in paranthesis when they are the final expression\n   - Variables from tool context are NOT available - pass data as parameters if needed\n   - Examples of correct patterns:\n     * Single value: document.querySelectorAll('img').length\n     * Object result: {images: document.images.length, links: document.links.length}\n     * Async operation: await fetch(location.href).then(r => r.status)\n     * DOM manipulation: document.body.style.backgroundColor = 'red'; 'background changed'\n\n9. Wait action:\n   - Time is specified in seconds\n   - Can be used to wait for page loads, animations, etc.\n   - Can be fractional (e.g., 0.5 seconds)\n   - Screenshot is captured after the wait\n10. The browser can operate concurrently with other tools. You may invoke\n    terminal, python, or other tools (in separate assistant messages) while maintaining\n    the active browser session, enabling sophisticated multi-tool workflows.\n11. Keyboard actions:\n    - Use press_key for individual key presses\n    - Use type for typing regular text\n    - Some keys have special names based on Playwright's key documentation\n12. All code in the js_code parameter is executed as-is - there's no need to\n    escape special characters or worry about formatting. Just write your JavaScript\n    code normally. It can be single line or multi-line.\n13. For form filling, click on the field first, then use 'type' to enter text.\n14. The browser runs in headless mode using Chrome engine for security and performance.",
+      "examples": [
+        {
+          "description": "Launch browser at URL (creates tab_1)",
+          "params": {
+            "action": "launch",
+            "url": "https://example.com"
+          }
+        },
+        {
+          "description": "Navigate to different URL",
+          "params": {
+            "action": "goto",
+            "url": "https://github.com"
+          }
+        },
+        {
+          "description": "Open new tab with different URL",
+          "params": {
+            "action": "new_tab",
+            "url": "https://another-site.com"
+          }
+        },
+        {
+          "description": "Wait for page load",
+          "params": {
+            "action": "wait",
+            "duration": "2.5"
+          }
+        },
+        {
+          "description": "Click login button at coordinates from screenshot",
+          "params": {
+            "action": "click",
+            "coordinate": "450,300"
+          }
+        },
+        {
+          "description": "Type text into a field",
+          "params": {
+            "action": "type",
+            "text": "user@example.com"
+          }
+        },
+        {
+          "description": "Press Enter key",
+          "params": {
+            "action": "press_key",
+            "key": "Enter"
+          }
+        },
+        {
+          "description": "Execute JavaScript to get page stats",
+          "params": {
+            "action": "execute_js",
+            "js_code": "const images = document.querySelectorAll('img');\nconst links = document.querySelectorAll('a');\n({\n    images: images.length,\n    links: links.length,\n    title: document.title\n})"
+          }
+        },
+        {
+          "description": "Scroll down the page",
+          "params": {
+            "action": "scroll_down"
+          }
+        },
+        {
+          "description": "Get console logs",
+          "params": {
+            "action": "get_console_logs"
+          }
+        },
+        {
+          "description": "View page source",
+          "params": {
+            "action": "view_source"
+          }
+        }
+      ]
+    }
+  ]
+}

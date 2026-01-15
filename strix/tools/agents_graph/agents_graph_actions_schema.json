@@ -1,0 +1,222 @@
+{
+  "tools": [
+    {
+      "name": "agent_finish",
+      "description": "Mark a subagent's task as completed and optionally report results to parent agent.\n\nIMPORTANT: This tool can ONLY be used by subagents (agents with a parent).\nRoot/main agents must use finish_scan instead.\n\nThis tool should be called when a subagent completes its assigned subtask to:\n- Mark the subagent's task as completed\n- Report findings back to the parent agent\n\nUse this tool when:\n- You are a subagent working on a specific subtask\n- You have completed your assigned task\n- You want to report your findings to the parent agent\n- You are ready to terminate this subagent's execution",
+      "details": "This replaces the previous finish_scan tool and handles both sub-agent completion and main agent completion. When a sub-agent finishes, it can report its findings back to the parent agent for coordination.",
+      "parameters": [
+        {
+          "name": "result_summary",
+          "type": "string",
+          "required": true,
+          "description": "Summary of what the agent accomplished and discovered"
+        },
+        {
+          "name": "findings",
+          "type": "string",
+          "required": false,
+          "description": "List of specific findings, vulnerabilities, or discoveries"
+        },
+        {
+          "name": "success",
+          "type": "boolean",
+          "required": false,
+          "description": "Whether the agent's task completed successfully"
+        },
+        {
+          "name": "report_to_parent",
+          "type": "boolean",
+          "required": false,
+          "description": "Whether to send results back to the parent agent"
+        },
+        {
+          "name": "final_recommendations",
+          "type": "string",
+          "required": false,
+          "description": "Recommendations for next steps or follow-up actions"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing: - agent_completed: Whether the agent was marked as completed - parent_notified: Whether parent was notified (if applicable) - completion_summary: Summary of completion status"
+      },
+      "examples": [
+        {
+          "description": "Sub-agent completing subdomain enumeration task",
+          "params": {
+            "result_summary": "Completed comprehensive subdomain enumeration for target.com. Discovered 47 subdomains including several interesting ones with admin/dev in the name. Found 3 subdomains with exposed services on non-standard ports.",
+            "findings": "[\"admin.target.com - exposed phpMyAdmin\", \"dev-api.target.com - unauth API endpoints\", \"staging.target.com - directory listing enabled\", \"mail.target.com - POP3/IMAP services\"]",
+            "success": "true",
+            "report_to_parent": "true",
+            "final_recommendations": "[\"Prioritize testing admin.target.com for default creds\", \"Enumerate dev-api.target.com API endpoints\", \"Check staging.target.com for sensitive files\"]"
+          }
+        }
+      ]
+    },
+    {
+      "name": "create_agent",
+      "description": "Create and spawn a new agent to handle a specific subtask.\n\nOnly create a new agent if no existing agent is handling the specific task.",
+      "details": "The new agent inherits the parent's conversation history and context up to the point of creation, then continues with its assigned subtask. This enables decomposition of complex penetration testing tasks into specialized sub-agents.\n\nThe agent runs asynchronously and independently, allowing the parent to continue immediately while the new agent executes its task in the background.\n\nIf you as a parent agent don't absolutely have anything to do while your subagents are running, you can use wait_for_message tool. The subagent will continue to run in the background, and update you when it's done.",
+      "parameters": [
+        {
+          "name": "task",
+          "type": "string",
+          "required": true,
+          "description": "The specific task/objective for the new agent to accomplish"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": "Human-readable name for the agent (for tracking purposes)"
+        },
+        {
+          "name": "inherit_context",
+          "type": "boolean",
+          "required": false,
+          "description": "Whether the new agent should inherit parent's conversation history and context"
+        },
+        {
+          "name": "skills",
+          "type": "string",
+          "required": false,
+          "description": "Comma-separated list of skills to use for the agent (MAXIMUM 5 skills allowed). Most agents should have at least one skill in order to be useful. Agents should be highly specialized - use 1-3 related skills; up to 5 for complex contexts. {{DYNAMIC_SKILLS_DESCRIPTION}}"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing: - agent_id: Unique identifier for the created agent - success: Whether the agent was created successfully - message: Status message - agent_info: Details about the created agent"
+      },
+      "examples": [
+        {
+          "description": "Create agent for SQL injection vulnerability validation",
+          "params": {
+            "task": "Validate and exploit the suspected SQL injection vulnerability found in the login form. Confirm exploitability and document proof of concept.",
+            "name": "SQLi Validator",
+            "skills": "sql_injection"
+          }
+        },
+        {
+          "description": "Create agent for authentication testing",
+          "params": {
+            "task": "Test authentication mechanisms, JWT implementation, and session management for security vulnerabilities and bypass techniques.",
+            "name": "Auth Specialist",
+            "skills": "authentication_jwt, business_logic"
+          }
+        },
+        {
+          "description": "Single-skill specialization for XSS testing",
+          "params": {
+            "task": "Perform comprehensive XSS testing including reflected, stored, and DOM-based variants across all identified input points.",
+            "name": "XSS Specialist",
+            "skills": "xss"
+          }
+        },
+        {
+          "description": "Multiple related skills for server-side attacks",
+          "params": {
+            "task": "Test for server-side vulnerabilities including SSRF, XXE, and potential RCE vectors in file upload and XML processing endpoints.",
+            "name": "Server-Side Attack Specialist",
+            "skills": "ssrf, xxe, rce"
+          }
+        }
+      ]
+    },
+    {
+      "name": "send_message_to_agent",
+      "description": "Send a message to another agent in the graph for coordination and communication.",
+      "details": "This enables agents to communicate with each other during execution, but should be used only when essential:\n- Sharing discovered information or findings\n- Asking questions or requesting assistance\n- Providing instructions or coordination\n- Reporting status or results\n\nBest practices:\n- Avoid routine status updates; batch non-urgent information\n- Prefer parent/child completion flows (agent_finish)\n- Do not message when the context is already known",
+      "parameters": [
+        {
+          "name": "target_agent_id",
+          "type": "string",
+          "required": true,
+          "description": "ID of the agent to send the message to"
+        },
+        {
+          "name": "message",
+          "type": "string",
+          "required": true,
+          "description": "The message content to send"
+        },
+        {
+          "name": "message_type",
+          "type": "string",
+          "required": false,
+          "description": "Type of message being sent: - \"query\": Question requiring a response - \"instruction\": Command or directive for the target agent - \"information\": Informational message (findings, status, etc.)"
+        },
+        {
+          "name": "priority",
+          "type": "string",
+          "required": false,
+          "description": "Priority level of the message"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing: - success: Whether the message was sent successfully - message_id: Unique identifier for the message - delivery_status: Status of message delivery"
+      },
+      "examples": [
+        {
+          "description": "Share discovered vulnerability information",
+          "params": {
+            "target_agent_id": "agent_abc123",
+            "message": "Found SQL injection vulnerability in /login.php parameter 'username'. Payload: admin' OR '1'='1' -- successfully bypassed authentication. You should focus your testing on the authenticated areas of the application.",
+            "message_type": "information",
+            "priority": "high"
+          }
+        },
+        {
+          "description": "Request assistance from specialist agent",
+          "params": {
+            "target_agent_id": "agent_def456",
+            "message": "I've identified what appears to be a custom encryption implementation in the API responses. Can you analyze the cryptographic strength and look for potential weaknesses?",
+            "message_type": "query",
+            "priority": "normal"
+          }
+        }
+      ]
+    },
+    {
+      "name": "view_agent_graph",
+      "description": "View the current agent graph showing all agents, their relationships, and status.",
+      "details": "This provides a comprehensive overview of the multi-agent system including:\n- All agent nodes with their tasks, status, and metadata\n- Parent-child relationships between agents\n- Message communication patterns\n- Current execution state",
+      "parameters": [],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing: - graph_structure: Human-readable representation of the agent graph - summary: High-level statistics about the graph"
+      }
+    },
+    {
+      "name": "wait_for_message",
+      "description": "Pause the agent loop indefinitely until receiving a message from another agent.\n\nThis tool puts the agent into a waiting state where it remains idle until it receives any form of communication. The agent will automatically resume execution when a message arrives.\n\nIMPORTANT: This tool causes the agent to stop all activity until a message is received. Use it when you need to:\n- Wait for subagent completion reports\n- Coordinate with other agents before proceeding\n- Synchronize multi-agent workflows\n\nNOTE: If you are waiting for an agent that is NOT your subagent, you first tell it to message you with updates before waiting for it. Otherwise, you will wait forever!",
+      "details": "When this tool is called, the agent (you) enters a waiting state and will not continue execution until:\n- Another agent sends a message via send_message_to_agent\n- Any other form of inter-agent communication occurs\n- Waiting timeout is reached\n\nThe agent will automatically resume from where it left off once a message is received.\nThis is particularly useful for parent agents waiting for subagent results or for coordination points in multi-agent workflows.\nNOTE: If you finished your task, and you do NOT have any child agents running, you should NEVER use this tool, and just call finish tool instead.",
+      "parameters": [
+        {
+          "name": "reason",
+          "type": "string",
+          "required": false,
+          "description": "Explanation for why the agent is waiting (for logging and monitoring purposes)"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing: - success: Whether the agent successfully entered waiting state - status: Current agent status (\"waiting\") - reason: The reason for waiting - agent_info: Details about the waiting agent - resume_conditions: List of conditions that will resume the agent"
+      },
+      "examples": [
+        {
+          "description": "Wait for subagents to complete their tasks",
+          "params": {
+            "reason": "Waiting for subdomain enumeration and port scanning subagents to complete their tasks and report findings"
+          }
+        },
+        {
+          "description": "Coordinate with other agents",
+          "params": {
+            "reason": "Waiting for vulnerability assessment agent to share discovered attack vectors before proceeding with exploitation phase"
+          }
+        }
+      ]
+    }
+  ]
+}

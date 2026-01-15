@@ -1,0 +1,281 @@
+{
+  "important": "The todo tool is available for organizing complex tasks when needed. Each subagent has their own separate todo list - your todos are private to you and do not interfere with other agents' todos.\n\nWHEN TO USE TODOS:\n- Planning complex multi-step operations\n- Tracking multiple parallel workstreams\n- When you need to remember tasks to return to later\n- Organizing large-scope assessments with many components\n\nWHEN NOT NEEDED:\n- Simple, straightforward tasks\n- Linear workflows where progress is obvious\n- Short tasks that can be completed quickly\n\nIf you do use todos, batch operations together to minimize tool calls.",
+  "tools": [
+    {
+      "name": "create_todo",
+      "description": "Create a new todo item to track tasks, goals, and progress.",
+      "details": "Use this tool when you need to track multiple tasks or plan complex operations.\nEach subagent maintains their own independent todo list - your todos are yours alone.\n\nUseful for breaking down complex tasks into smaller, manageable items when the workflow\nis non-trivial or when you need to track progress across multiple components.",
+      "parameters": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": false,
+          "description": "Short, actionable title for the todo (e.g., \"Test login endpoint for SQL injection\")"
+        },
+        {
+          "name": "todos",
+          "type": "string",
+          "required": false,
+          "description": "Create multiple todos at once. Provide a JSON array of {\"title\": \"...\", \"description\": \"...\", \"priority\": \"...\"} objects or a newline-separated bullet list."
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": "Detailed description or notes about the task"
+        },
+        {
+          "name": "priority",
+          "type": "string",
+          "required": false,
+          "description": "Priority level: \"low\", \"normal\", \"high\", \"critical\" (default: \"normal\")"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing: - created: List of created todos with their IDs - todos: Full sorted todo list - success: Whether the operation succeeded"
+      },
+      "examples": [
+        {
+          "description": "Create a high priority todo",
+          "params": {
+            "title": "Test authentication bypass on /api/admin",
+            "description": "The admin endpoint seems to have weak authentication. Try JWT manipulation, session fixation, and privilege escalation.",
+            "priority": "high"
+          }
+        },
+        {
+          "description": "Create a simple todo",
+          "params": {
+            "title": "Enumerate all API endpoints"
+          }
+        },
+        {
+          "description": "Bulk create todos (JSON array)",
+          "params": {
+            "todos": "[{\"title\": \"Map all admin routes\", \"priority\": \"high\"}, {\"title\": \"Check forgotten password flow\"}]"
+          }
+        },
+        {
+          "description": "Bulk create todos (bullet list)",
+          "params": {
+            "todos": "- Capture baseline traffic in proxy\n- Enumerate S3 buckets for leaked assets\n- Compare responses for timing differences"
+          }
+        }
+      ]
+    },
+    {
+      "name": "list_todos",
+      "description": "List all todos with optional filtering by status or priority.",
+      "details": "Use this when you need to check your current todos, get fresh IDs, or reprioritize.\nThe list is sorted: done first, then in_progress, then pending. Within each status, sorted by priority (critical > high > normal > low).\nEach subagent has their own independent todo list.",
+      "parameters": [
+        {
+          "name": "status",
+          "type": "string",
+          "required": false,
+          "description": "Filter by status: \"pending\", \"in_progress\", \"done\""
+        },
+        {
+          "name": "priority",
+          "type": "string",
+          "required": false,
+          "description": "Filter by priority: \"low\", \"normal\", \"high\", \"critical\""
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing: - todos: List of todo items - total_count: Total number of todos - summary: Count by status (pending, in_progress, done)"
+      },
+      "examples": [
+        {
+          "description": "List all todos",
+          "params": {}
+        },
+        {
+          "description": "List only pending todos",
+          "params": {
+            "status": "pending"
+          }
+        },
+        {
+          "description": "List high priority items",
+          "params": {
+            "priority": "high"
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_todo",
+      "description": "Update one or multiple todo items. Prefer bulk updates in a single call when updating multiple items.",
+      "parameters": [
+        {
+          "name": "todo_id",
+          "type": "string",
+          "required": false,
+          "description": "ID of a single todo to update (for simple updates)"
+        },
+        {
+          "name": "updates",
+          "type": "string",
+          "required": false,
+          "description": "Bulk update multiple todos at once. JSON array of objects with todo_id and fields to update: [{\"todo_id\": \"abc\", \"status\": \"done\"}, {\"todo_id\": \"def\", \"priority\": \"high\"}]."
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false,
+          "description": "New title (used with todo_id)"
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": "New description (used with todo_id)"
+        },
+        {
+          "name": "priority",
+          "type": "string",
+          "required": false,
+          "description": "New priority: \"low\", \"normal\", \"high\", \"critical\" (used with todo_id)"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": false,
+          "description": "New status: \"pending\", \"in_progress\", \"done\" (used with todo_id)"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing: - updated: List of updated todo IDs - updated_count: Number updated - todos: Full sorted todo list - errors: Any failed updates"
+      },
+      "examples": [
+        {
+          "description": "Single update",
+          "params": {
+            "todo_id": "abc123",
+            "status": "in_progress"
+          }
+        },
+        {
+          "description": "Bulk update multiple todos",
+          "params": {
+            "updates": "[{\"todo_id\": \"abc123\", \"status\": \"done\"}, {\"todo_id\": \"def456\", \"status\": \"in_progress\"}, {\"todo_id\": \"ghi789\", \"priority\": \"critical\"}]"
+          }
+        }
+      ]
+    },
+    {
+      "name": "mark_todo_done",
+      "description": "Mark one or multiple todos as completed in a single call.",
+      "details": "Mark todos as done after completing them. Group multiple completions into one call using todo_ids when possible.",
+      "parameters": [
+        {
+          "name": "todo_id",
+          "type": "string",
+          "required": false,
+          "description": "ID of a single todo to mark as done"
+        },
+        {
+          "name": "todo_ids",
+          "type": "string",
+          "required": false,
+          "description": "Mark multiple todos done at once. JSON array of IDs: [\"abc123\", \"def456\"] or comma-separated: \"abc123, def456\""
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing: - marked_done: List of IDs marked done - marked_count: Number marked - todos: Full sorted list - errors: Any failures"
+      },
+      "examples": [
+        {
+          "description": "Mark single todo done",
+          "params": {
+            "todo_id": "abc123"
+          }
+        },
+        {
+          "description": "Mark multiple todos done",
+          "params": {
+            "todo_ids": "[\"abc123\", \"def456\", \"ghi789\"]"
+          }
+        }
+      ]
+    },
+    {
+      "name": "mark_todo_pending",
+      "description": "Mark one or multiple todos as pending (reopen completed tasks).",
+      "details": "Use this to reopen tasks that were marked done but need more work. Supports bulk operations.",
+      "parameters": [
+        {
+          "name": "todo_id",
+          "type": "string",
+          "required": false,
+          "description": "ID of a single todo to mark as pending"
+        },
+        {
+          "name": "todo_ids",
+          "type": "string",
+          "required": false,
+          "description": "Mark multiple todos pending at once. JSON array of IDs: [\"abc123\", \"def456\"] or comma-separated: \"abc123, def456\""
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing: - marked_pending: List of IDs marked pending - marked_count: Number marked - todos: Full sorted list - errors: Any failures"
+      },
+      "examples": [
+        {
+          "description": "Mark single todo pending",
+          "params": {
+            "todo_id": "abc123"
+          }
+        },
+        {
+          "description": "Mark multiple todos pending",
+          "params": {
+            "todo_ids": "[\"abc123\", \"def456\"]"
+          }
+        }
+      ]
+    },
+    {
+      "name": "delete_todo",
+      "description": "Delete one or multiple todos in a single call.",
+      "details": "Use this to remove todos that are no longer relevant. Supports bulk deletion to save tool calls.",
+      "parameters": [
+        {
+          "name": "todo_id",
+          "type": "string",
+          "required": false,
+          "description": "ID of a single todo to delete"
+        },
+        {
+          "name": "todo_ids",
+          "type": "string",
+          "required": false,
+          "description": "Delete multiple todos at once. JSON array of IDs: [\"abc123\", \"def456\"] or comma-separated: \"abc123, def456\""
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing: - deleted: List of deleted IDs - deleted_count: Number deleted - todos: Remaining todos - errors: Any failures"
+      },
+      "examples": [
+        {
+          "description": "Delete single todo",
+          "params": {
+            "todo_id": "abc123"
+          }
+        },
+        {
+          "description": "Delete multiple todos",
+          "params": {
+            "todo_ids": "[\"abc123\", \"def456\", \"ghi789\"]"
+          }
+        }
+      ]
+    }
+  ]
+}

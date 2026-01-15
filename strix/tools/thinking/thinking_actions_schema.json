@@ -1,0 +1,41 @@
+{
+  "tools": [
+    {
+      "name": "think",
+      "description": "Use the tool to think about something. It will not obtain new information or change the database. Use it when complex reasoning or some cache memory is needed.",
+      "details": "This tool creates dedicated space for structured thinking during complex tasks, particularly useful for:\n- Tool output analysis: When you need to carefully process the output of previous tool calls\n- Policy-heavy environments: When you need to follow detailed guidelines and verify compliance\n- Sequential decision making: When each action builds on previous ones and mistakes are costly\n- Multi-step problem solving: When you need to break down complex problems into manageable steps",
+      "parameters": [
+        {
+          "name": "thought",
+          "type": "string",
+          "required": true,
+          "description": "The thought or reasoning to record"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing: - success: Whether the thought was recorded successfully - message: Confirmation message with character count or error details"
+      },
+      "examples": [
+        {
+          "description": "Planning and strategy",
+          "params": {
+            "thought": "I need to analyze the scan results systematically. First, let me review the open ports: 22 (SSH), 80 (HTTP), 443 (HTTPS), and 3306 (MySQL). The MySQL port being externally accessible is a high priority security concern. I should check for default credentials and version information. For the web services, I need to enumerate directories and test for common web vulnerabilities."
+          }
+        },
+        {
+          "description": "Analysis of tool outputs",
+          "params": {
+            "thought": "The Nmap scan revealed 15 open ports, but three stand out as concerning:\n- Port 3306 (MySQL) - Database should not be exposed externally\n- Port 5432 (PostgreSQL) - Another database port that's risky when public\n- Port 6379 (Redis) - Often misconfigured and can lead to data exposure\nI should prioritize testing these database services for authentication bypass and information disclosure vulnerabilities."
+          }
+        },
+        {
+          "description": "Decision making and next steps",
+          "params": {
+            "thought": "Based on the vulnerability scan results, I've identified several critical issues that need immediate attention:\n1. SQL injection in the login form (confirmed with sqlmap)\n2. Reflected XSS in the search parameter\n3. Directory traversal in the file upload function\nI should document these findings with proof-of-concept exploits and assign appropriate CVSS scores. The SQL injection poses the highest risk due to potential data exfiltration."
+          }
+        }
+      ]
+    }
+  ]
+}

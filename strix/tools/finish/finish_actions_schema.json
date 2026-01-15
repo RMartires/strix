@@ -1,0 +1,38 @@
+{
+  "tools": [
+    {
+      "name": "finish_scan",
+      "description": "Complete the security scan by providing the final assessment fields as full penetration test report.\n\nIMPORTANT: This tool can ONLY be used by the root/main agent.\nSubagents must use agent_finish from agents_graph tool instead.\n\nIMPORTANT: This tool will NOT allow finishing if any agents are still running or stopping.\nYou must wait for all agents to complete before using this tool.\n\nThis tool directly updates the scan report data:\n- executive_summary\n- methodology\n- technical_analysis\n- recommendations\n\nAll fields are REQUIRED and map directly to the final report.\n\nThis must be the last tool called in the scan. It will:\n1. Verify you are the root agent\n2. Check all subagents have completed\n3. Update the scan with your provided fields\n4. Mark the scan as completed\n5. Stop agent execution\n\nUse this tool when:\n- You are the main/root agent conducting the security assessment\n- ALL subagents have completed their tasks (no agents are \"running\" or \"stopping\")\n- You have completed all testing phases\n- You are ready to conclude the entire security assessment\n\nIMPORTANT: Calling this tool multiple times will OVERWRITE any previous scan report.\nMake sure you include ALL findings and details in a single comprehensive report.\n\nIf agents are still running, the tool will:\n- Show you which agents are still active\n- Suggest using wait_for_message to wait for completion\n- Suggest messaging agents if immediate completion is needed\n\nNOTE: Make sure the vulnerabilities found were reported with create_vulnerability_report tool, otherwise they will not be tracked and you will not be rewarded.\nBut make sure to not report the same vulnerability multiple times.\n\nProfessional, customer-facing penetration test report rules (PDF-ready):\n- Do NOT include internal or system details: never mention local/absolute paths (e.g., \"/workspace\"), internal tools, agents, orchestrators, sandboxes, models, system prompts/instructions, connection/tooling issues, or tester environment details.\n- Tone and style: formal, objective, third-person, concise. No internal checklists or engineering runbooks. Content must read as a polished client deliverable.\n- Structure across fields should align to standard pentest reports:\n  - Executive summary: business impact, risk posture, notable criticals, remediation theme.\n  - Methodology: industry-standard methods (e.g., OWASP, OSSTMM, NIST), scope, constraints—no internal execution notes.\n  - Technical analysis: consolidated findings overview referencing created vulnerability reports; avoid raw logs.\n  - Recommendations: prioritized, actionable, aligned to risk and best practices.",
+      "parameters": [
+        {
+          "name": "executive_summary",
+          "type": "string",
+          "required": true,
+          "description": "High-level summary for executives: key findings, overall security posture, critical risks, business impact"
+        },
+        {
+          "name": "methodology",
+          "type": "string",
+          "required": true,
+          "description": "Testing methodology: approach, tools used, scope, techniques employed"
+        },
+        {
+          "name": "technical_analysis",
+          "type": "string",
+          "required": true,
+          "description": "Detailed technical findings and security assessment results over the scan"
+        },
+        {
+          "name": "recommendations",
+          "type": "string",
+          "required": true,
+          "description": "Actionable security recommendations and remediation priorities"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing success status, vulnerability count, and completion message. If agents are still running, returns details about active agents and suggested actions."
+      }
+    }
+  ]
+}

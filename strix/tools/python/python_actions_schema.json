@@ -1,0 +1,85 @@
+{
+  "tools": [
+    {
+      "name": "python_action",
+      "description": "Perform Python actions using persistent interpreter sessions for cybersecurity tasks.",
+      "details": "Common Use Cases:\n- Security script development and testing (payload generation, exploit scripts)\n- Data analysis of security logs, network traffic, or vulnerability scans\n- Cryptographic operations and security tool automation\n- Interactive penetration testing workflows and proof-of-concept development\n- Processing security data formats (JSON, XML, CSV from security tools)\n- HTTP proxy interaction for web security testing (all proxy functions are pre-imported)\n\nEach session instance is PERSISTENT and maintains its own global and local namespaces\nuntil explicitly closed, allowing for multi-step security workflows and stateful computations.\n\nPROXY FUNCTIONS PRE-IMPORTED:\nAll proxy action functions are automatically imported into every Python session, enabling\nseamless HTTP traffic analysis and web security testing\n\nThis is particularly useful for:\n- Analyzing captured HTTP traffic during web application testing\n- Automating request manipulation and replay attacks\n- Building custom security testing workflows combining proxy data with Python analysis\n- Correlating multiple requests for advanced attack scenarios",
+      "parameters": [
+        {
+          "name": "action",
+          "type": "string",
+          "required": true,
+          "description": "The Python action to perform: - new_session: Create a new Python interpreter session. This MUST be the first action for each session. - execute: Execute Python code in the specified session. - close: Close the specified session instance. - list_sessions: List all active Python sessions."
+        },
+        {
+          "name": "code",
+          "type": "string",
+          "required": false,
+          "description": "Required for 'new_session' (as initial code) and 'execute' actions. The Python code to execute."
+        },
+        {
+          "name": "timeout",
+          "type": "integer",
+          "required": false,
+          "description": "Maximum execution time in seconds for code execution. Applies to both 'new_session' (when initial code is provided) and 'execute' actions. Default is 30 seconds."
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "required": false,
+          "description": "Unique identifier for the Python session. If not provided, uses the default session ID."
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing: - session_id: the ID of the session that was operated on - stdout: captured standard output from code execution (for execute action) - stderr: any error message if execution failed - result: string representation of the last expression result - execution_time: time taken to execute the code - message: status message about the action performed - Various session info depending on the action"
+      },
+      "notes": "Important usage rules:\n1. PERSISTENCE: Session instances remain active and maintain their state (variables,\n   imports, function definitions) until explicitly closed with the 'close' action.\n   This allows for multi-step workflows across multiple tool calls.\n2. MULTIPLE SESSIONS: You can run multiple Python sessions concurrently by using\n   different session_id values. Each session operates independently with its own\n   namespace.\n3. Session interaction MUST begin with 'new_session' action for each session instance.\n4. Only one action can be performed per call.\n5. CODE EXECUTION:\n   - Both expressions and statements are supported\n   - Expressions automatically return their result\n   - Print statements and stdout are captured\n   - Variables persist between executions in the same session\n   - Imports, function definitions, etc. persist in the session\n   - IMPORTANT (multiline): Put real line breaks in <parameter=code>. Do NOT emit literal \"\\n\" sequences.\n   - IPython magic commands are fully supported (%pip, %time, %whos, %%writefile, etc.)\n   - Line magics (%) and cell magics (%%) work as expected\n6. CLOSE: Terminates the session completely and frees memory\n7. The Python sessions can operate concurrently with other tools. You may invoke\n   terminal, browser, or other tools while maintaining active Python sessions.\n8. Each session has its own isolated namespace - variables in one session don't\n   affect others.",
+      "examples": [
+        {
+          "description": "Create new session for security analysis",
+          "params": {
+            "action": "new_session",
+            "code": "import hashlib\nimport base64\nimport json\nprint(\"Security analysis session started\")"
+          }
+        },
+        {
+          "description": "Execute HTTP request code",
+          "params": {
+            "action": "execute",
+            "code": "import requests\nurl = \"https://example.com\"\nresp = requests.get(url, timeout=10)\nprint(resp.status_code)"
+          }
+        },
+        {
+          "description": "Analyze security data",
+          "params": {
+            "action": "execute",
+            "code": "vulnerability_data = {\"cve\": \"CVE-2024-1234\", \"severity\": \"high\"}\nencoded_payload = base64.b64encode(json.dumps(vulnerability_data).encode())\nprint(f\"Encoded: {encoded_payload.decode()}\")"
+          }
+        },
+        {
+          "description": "Long running security scan with custom timeout",
+          "params": {
+            "action": "execute",
+            "code": "import time\n# Simulate long-running vulnerability scan\ntime.sleep(45)\nprint('Security scan completed!')",
+            "timeout": "50"
+          }
+        },
+        {
+          "description": "Use IPython magic commands",
+          "params": {
+            "action": "execute",
+            "code": "%pip install requests\n%time response = requests.get('https://httpbin.org/json')\n%whos"
+          }
+        },
+        {
+          "description": "Analyze proxy requests for vulnerabilities",
+          "params": {
+            "action": "execute",
+            "code": "# Filter for POST requests that might contain sensitive data\npost_requests = list_requests(\n    httpql_filter=\"req.method.eq:POST\",\n    page_size=20\n)\n\nfor req in post_requests.get('requests', []):\n    request_id = req['id']\n    request_details = view_request(request_id, part=\"request\")\n    body = request_details.get('body', '')\n    if any(keyword in body.lower() for keyword in ['select', 'union', 'insert']):\n        print(f\"Potential SQL injection in request {request_id}\")"
+          }
+        }
+      ]
+    }
+  ]
+}

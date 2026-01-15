@@ -1,0 +1,152 @@
+{
+  "tools": [
+    {
+      "name": "create_vulnerability_report",
+      "description": "Create a vulnerability report for a discovered security issue.\n\nIMPORTANT: This tool includes automatic LLM-based deduplication. Reports that describe the same vulnerability (same root cause on the same asset) as an existing report will be rejected.\n\nUse this tool to document a specific fully verified security vulnerability.\n\nDO NOT USE:\n- For general security observations without specific vulnerabilities\n- When you don't have concrete vulnerability details\n- When you don't have a proof of concept, or still not 100% sure if it's a vulnerability\n- For tracking multiple vulnerabilities (create separate reports)\n- For reporting multiple vulnerabilities at once. Use a separate create_vulnerability_report for each vulnerability.\n- To re-report a vulnerability that was already reported (even with different details)\n\nWhite-box requirement (when you have access to the code): You MUST include code_file, code_before, code_after, and code_diff. These must contain the actual code (before/after) and a complete, apply-able unified diff.\n\nDEDUPLICATION: If this tool returns with success=false and mentions a duplicate, DO NOT attempt to re-submit. The vulnerability has already been reported. Move on to testing other areas.\n\nProfessional, customer-facing report rules (PDF-ready):\n- Do NOT include internal or system details: never mention local or absolute paths (e.g., \"/workspace\"), internal tools, agents, orchestrators, sandboxes, models, system prompts/instructions, connection issues, internal errors/logs/stack traces, or tester machine environment details.\n- Tone and style: formal, objective, third-person, vendor-neutral, concise. No runbooks, checklists, or engineering notes. Avoid headings like \"QUICK\", \"Approach\", or \"Techniques\" that read like internal guidance.\n- Use a standard penetration testing report structure per finding:\n  1) Overview\n  2) Severity and CVSS (vector only)\n  3) Affected asset(s)\n  4) Technical details\n  5) Proof of concept (repro steps plus code)\n  6) Impact\n  7) Remediation\n  8) Evidence (optional request/response excerpts, etc.) in the technical analysis field.\n- Numbered steps are allowed ONLY within the proof of concept. Elsewhere, use clear, concise paragraphs suitable for customer-facing reports.\n- Language must be precise and non-vague; avoid hedging.",
+      "parameters": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "description": "Clear, specific title (e.g., \"SQL Injection in /api/users Login Parameter\"). But not too long. Don't mention CVE number in the title."
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": true,
+          "description": "Comprehensive description of the vulnerability and how it was discovered"
+        },
+        {
+          "name": "impact",
+          "type": "string",
+          "required": true,
+          "description": "Impact assessment: what attacker can do, business risk, data at risk"
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "required": true,
+          "description": "Affected target: URL, domain, or Git repository"
+        },
+        {
+          "name": "technical_analysis",
+          "type": "string",
+          "required": true,
+          "description": "Technical explanation of the vulnerability mechanism and root cause"
+        },
+        {
+          "name": "poc_description",
+          "type": "string",
+          "required": true,
+          "description": "Step-by-step instructions to reproduce the vulnerability"
+        },
+        {
+          "name": "poc_script_code",
+          "type": "string",
+          "required": true,
+          "description": "Actual proof of concept code, exploit, payload, or script that demonstrates the vulnerability. Python code."
+        },
+        {
+          "name": "remediation_steps",
+          "type": "string",
+          "required": true,
+          "description": "Specific, actionable steps to fix the vulnerability"
+        },
+        {
+          "name": "attack_vector",
+          "type": "string",
+          "required": true,
+          "description": "CVSS Attack Vector - How the vulnerability is exploited:\nN = Network (remotely exploitable)\nA = Adjacent (same network segment)\nL = Local (local access required)\nP = Physical (physical access required)"
+        },
+        {
+          "name": "attack_complexity",
+          "type": "string",
+          "required": true,
+          "description": "CVSS Attack Complexity - Conditions beyond attacker's control:\nL = Low (no special conditions)\nH = High (special conditions must exist)"
+        },
+        {
+          "name": "privileges_required",
+          "type": "string",
+          "required": true,
+          "description": "CVSS Privileges Required - Level of privileges needed:\nN = None (no privileges needed)\nL = Low (basic user privileges)\nH = High (admin privileges)"
+        },
+        {
+          "name": "user_interaction",
+          "type": "string",
+          "required": true,
+          "description": "CVSS User Interaction - Does exploit require user action:\nN = None (no user interaction needed)\nR = Required (user must perform some action)"
+        },
+        {
+          "name": "scope",
+          "type": "string",
+          "required": true,
+          "description": "CVSS Scope - Can the vulnerability affect resources beyond its security scope:\nU = Unchanged (only affects the vulnerable component)\nC = Changed (affects resources beyond vulnerable component)"
+        },
+        {
+          "name": "confidentiality",
+          "type": "string",
+          "required": true,
+          "description": "CVSS Confidentiality Impact - Impact to confidentiality:\nN = None (no impact)\nL = Low (some information disclosure)\nH = High (all information disclosed)"
+        },
+        {
+          "name": "integrity",
+          "type": "string",
+          "required": true,
+          "description": "CVSS Integrity Impact - Impact to integrity:\nN = None (no impact)\nL = Low (data can be modified but scope is limited)\nH = High (total loss of integrity)"
+        },
+        {
+          "name": "availability",
+          "type": "string",
+          "required": true,
+          "description": "CVSS Availability Impact - Impact to availability:\nN = None (no impact)\nL = Low (reduced performance or interruptions)\nH = High (total loss of availability)"
+        },
+        {
+          "name": "endpoint",
+          "type": "string",
+          "required": false,
+          "description": "API endpoint(s) or URL path(s) (e.g., \"/api/login\") - for web vulnerabilities, or Git repository path(s) - for code vulnerabilities"
+        },
+        {
+          "name": "method",
+          "type": "string",
+          "required": false,
+          "description": "HTTP method(s) (GET, POST, etc.) - for web vulnerabilities."
+        },
+        {
+          "name": "cve",
+          "type": "string",
+          "required": false,
+          "description": "CVE identifier (e.g., \"CVE-2024-1234\"). Make sure it's a valid CVE. Use web search or vulnerability databases to make sure it's a valid CVE number."
+        },
+        {
+          "name": "code_file",
+          "type": "string",
+          "required": false,
+          "description": "MANDATORY for white-box testing: exact affected source file path(s)."
+        },
+        {
+          "name": "code_before",
+          "type": "string",
+          "required": false,
+          "description": "MANDATORY for white-box testing: actual vulnerable code snippet(s) copied verbatim from the repository."
+        },
+        {
+          "name": "code_after",
+          "type": "string",
+          "required": false,
+          "description": "MANDATORY for white-box testing: corrected code snippet(s) exactly as they should appear after the fix."
+        },
+        {
+          "name": "code_diff",
+          "type": "string",
+          "required": false,
+          "description": "MANDATORY for white-box testing: unified diff showing the code changes. Must be a complete, apply-able unified diff (git format) covering all affected files, with proper file headers, line numbers, and sufficient context."
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing:\n- On success: success=true, message, report_id, severity, cvss_score\n- On duplicate detection: success=false, message (with duplicate info), duplicate_of (ID), duplicate_title, confidence (0-1), reason (why it's a duplicate)"
+      }
+    }
+  ]
+}

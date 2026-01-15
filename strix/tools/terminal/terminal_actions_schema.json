@@ -1,0 +1,114 @@
+{
+  "tools": [
+    {
+      "name": "terminal_execute",
+      "description": "Execute a bash command in a persistent terminal session. The terminal maintains state (environment variables, current directory, running processes) between commands.",
+      "parameters": [
+        {
+          "name": "command",
+          "type": "string",
+          "required": true,
+          "description": "The bash command to execute. Can be empty to check output of running commands (will wait for timeout period to collect output).\n\nSupported special keys and sequences (based on official tmux key names):\n- Control sequences: C-c, C-d, C-z, C-a, C-e, C-k, C-l, C-u, C-w, etc. (also ^c, ^d, etc.)\n- Navigation keys: Up, Down, Left, Right, Home, End\n- Page keys: PageUp, PageDown, PgUp, PgDn, PPage, NPage\n- Function keys: F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12\n- Special keys: Enter, Escape, Space, Tab, BTab, BSpace, DC, IC\n- Note: Use official tmux names (BSpace not Backspace, DC not Delete, IC not Insert, Escape not Esc)\n- Meta/Alt sequences: M-key (e.g., M-f, M-b) - tmux official modifier\n- Shift sequences: S-key (e.g., S-F6, S-Tab, S-Left)\n- Combined modifiers: C-S-key, C-M-key, S-M-key, etc.\n\nSpecial keys work automatically - no need to set is_input=true for keys like C-c, C-d, etc.\nThese are useful for interacting with vim, emacs, REPLs, and other interactive applications."
+        },
+        {
+          "name": "is_input",
+          "type": "boolean",
+          "required": false,
+          "description": "If true, the command is sent as input to a currently running process. If false (default), the command is executed as a new bash command.\nNote: Special keys (C-c, C-d, etc.) automatically work when a process is running - you don't need to set is_input=true for them.\nUse is_input=true for regular text input to running processes."
+        },
+        {
+          "name": "timeout",
+          "type": "number",
+          "required": false,
+          "description": "Optional timeout in seconds for command execution. CAPPED AT 60 SECONDS. If not provided, uses default wait (30s). On timeout, the command keeps running and the tool returns with status 'running'. For truly long-running tasks, prefer backgrounding with '&'."
+        },
+        {
+          "name": "terminal_id",
+          "type": "string",
+          "required": false,
+          "description": "Identifier for the terminal session. Defaults to \"default\". Use different IDs to manage multiple concurrent terminal sessions."
+        },
+        {
+          "name": "no_enter",
+          "type": "boolean",
+          "required": false,
+          "description": "If true, don't automatically add Enter/newline after the command. Useful for:\n- Interactive prompts where you want to send keys without submitting\n- Navigation keys in full-screen applications\n\nExamples:\n- terminal_execute(\"gg\", is_input=true, no_enter=true)  # Vim: go to top\n- terminal_execute(\"5j\", is_input=true, no_enter=true)  # Vim: move down 5 lines\n- terminal_execute(\"i\", is_input=true, no_enter=true)   # Vim: insert mode"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing:\n- content: Command output\n- exit_code: Exit code of the command (only for completed commands)\n- command: The executed command\n- terminal_id: The terminal session ID\n- status: Command status ('completed' or 'running')\n- working_dir: Current working directory after command execution"
+      },
+      "notes": "Important usage rules:\n1. PERSISTENT SESSION: The terminal maintains state between commands. Environment variables,\n   current directory, and running processes persist across multiple tool calls.\n\n2. COMMAND EXECUTION:\n   - AVOID: Long pipelines, complex bash scripts, or convoluted one-liners\n   - Break complex operations into multiple simple tool calls for clarity and debugging\n   - For multiple commands, prefer separate tool calls over chaining with && or ;\n\n3. LONG-RUNNING COMMANDS:\n   - Commands never get killed automatically - they keep running in background\n   - Set timeout to control how long to wait for output before returning\n   - For daemons/servers or very long jobs, append '&' to run in background\n   - Use empty command \"\" to check progress (waits for timeout period to collect output)\n   - Use C-c, C-d, C-z to interrupt processes (works automatically, no is_input needed)\n\n4. TIMEOUT HANDLING:\n   - Timeout controls how long to wait before returning current output (max 60s cap)\n   - Commands are NEVER killed on timeout - they keep running\n   - After timeout, you can run new commands or check progress with empty command\n   - On timeout, status is 'running'; on completion, status is 'completed'\n\n5. MULTIPLE TERMINALS: Use different terminal_id values to run multiple concurrent sessions.\n\n6. INTERACTIVE PROCESSES:\n   - Special keys (C-c, C-d, etc.) work automatically when a process is running\n   - Use is_input=true for regular text input to running processes like:\n     * Interactive shells, REPLs, or prompts\n     * Long-running applications waiting for input\n     * Background processes that need interaction\n   - Use no_enter=true for stuff like Vim navigation, password typing, or multi-step commands\n\n7. WORKING DIRECTORY: The terminal tracks and returns the current working directory.\n   Use absolute paths or cd commands to change directories as needed.\n\n8. OUTPUT HANDLING: Large outputs are automatically truncated. The tool provides\n   the most relevant parts of the output for analysis.",
+      "examples": [
+        {
+          "description": "Execute a simple command",
+          "params": {
+            "command": "ls -la"
+          }
+        },
+        {
+          "description": "Change directory and list files",
+          "params": {
+            "command": "cd /workspace\npwd\nls -la"
+          }
+        },
+        {
+          "description": "Run a command with custom timeout",
+          "params": {
+            "command": "npm install",
+            "timeout": "60"
+          }
+        },
+        {
+          "description": "Check progress of running command",
+          "params": {
+            "command": "",
+            "timeout": "5"
+          }
+        },
+        {
+          "description": "Start a background service",
+          "params": {
+            "command": "python app.py > server.log 2>&1 &"
+          }
+        },
+        {
+          "description": "Interact with a running process",
+          "params": {
+            "command": "y",
+            "is_input": "true"
+          }
+        },
+        {
+          "description": "Interrupt a running process",
+          "params": {
+            "command": "C-c"
+          }
+        },
+        {
+          "description": "Send Escape key",
+          "params": {
+            "command": "Escape",
+            "is_input": "true"
+          }
+        },
+        {
+          "description": "Use a different terminal session",
+          "params": {
+            "command": "python3",
+            "terminal_id": "python_session"
+          }
+        },
+        {
+          "description": "Send input to Python REPL in specific session",
+          "params": {
+            "command": "print(\"Hello World\")",
+            "is_input": "true",
+            "terminal_id": "python_session"
+          }
+        }
+      ]
+    }
+  ]
+}

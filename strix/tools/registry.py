@@ -1,14 +1,16 @@
 import inspect
+import json
 import logging
 import os
 from collections.abc import Callable
 from functools import wraps
 from inspect import signature
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-import defusedxml.ElementTree as DefusedET
+from pydantic import ValidationError
 
+from strix.tools.schema import ToolDefinition, ToolSchema
 from strix.utils.resource_paths import get_strix_resource_path
 
 
@@ -44,72 +46,62 @@ def _process_dynamic_content(content: str) -> str:
     return content
 
 
-def _load_xml_schema(path: Path) -> Any:
+def _load_json_schema(path: Path, validate: bool = True) -> dict[str, dict[str, Any]] | None:
     if not path.exists():
         return None
     try:
         content = path.read_text()
-
         content = _process_dynamic_content(content)
+        schema_data: dict[str, Any] = json.loads(content)
 
-        start_tag = '<tool name="'
-        end_tag = "</tool>"
-        tools_dict = {}
+        tools_list: list[dict[str, Any]] = []
 
-        pos = 0
-        while True:
-            start_pos = content.find(start_tag, pos)
-            if start_pos == -1:
-                break
+        # Validate with Pydantic if requested
+        if validate:
+            try:
+                validated_schema = ToolSchema.model_validate(schema_data)
+                tools_list = [tool.model_dump(exclude_none=True) for tool in validated_schema.tools]
+            except ValidationError as e:
+                logger.warning(f"Schema validation failed for {path}: {e}")
+                # Fall back to raw data if validation fails
+                raw_tools = schema_data.get("tools", [])
+                if isinstance(raw_tools, list):
+                    tools_list = cast(list[dict[str, Any]], raw_tools)
+        else:
+            raw_tools = schema_data.get("tools", [])
+            if isinstance(raw_tools, list):
+                tools_list = cast(list[dict[str, Any]], raw_tools)
 
-            name_start = start_pos + len(start_tag)
-            name_end = content.find('"', name_start)
-            if name_end == -1:
-                break
-            tool_name = content[name_start:name_end]
+        tools_dict: dict[str, dict[str, Any]] = {}
+        for tool in tools_list:
+            tool_name = tool.get("name")
+            if tool_name and isinstance(tool_name, str):
+                tools_dict[tool_name] = tool
 
-            end_pos = content.find(end_tag, name_end)
-            if end_pos == -1:
-                break
-            end_pos += len(end_tag)
-
-            tool_element = content[start_pos:end_pos]
-            tools_dict[tool_name] = tool_element
-
-            pos = end_pos
-
-            if pos >= len(content):
-                break
-    except (IndexError, ValueError, UnicodeError) as e:
+        return tools_dict
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
         logger.warning(f"Error loading schema file {path}: {e}")
         return None
-    else:
-        return tools_dict
 
 
-def _parse_param_schema(tool_xml: str) -> dict[str, Any]:
+def _parse_param_schema(tool_json: dict[str, Any] | None) -> dict[str, Any]:
     params: set[str] = set()
     required: set[str] = set()
 
-    params_start = tool_xml.find("<parameters>")
-    params_end = tool_xml.find("</parameters>")
-
-    if params_start == -1 or params_end == -1:
+    if not tool_json:
         return {"params": set(), "required": set(), "has_params": False}
 
-    params_section = tool_xml[params_start : params_end + len("</parameters>")]
-
-    try:
-        root = DefusedET.fromstring(params_section)
-    except DefusedET.ParseError:
+    raw_parameters = tool_json.get("parameters", [])
+    if not isinstance(raw_parameters, list):
         return {"params": set(), "required": set(), "has_params": False}
 
-    for param in root.findall(".//parameter"):
-        name = param.attrib.get("name")
-        if not name:
+    parameters = cast(list[dict[str, Any]], raw_parameters)
+    for param in parameters:
+        name = param.get("name")
+        if not name or not isinstance(name, str):
             continue
         params.add(name)
-        if param.attrib.get("required", "false").lower() == "true":
+        if param.get("required", False) is True:
             required.add(name)
 
     return {"params": params, "required": required, "has_params": bool(params or required)}
@@ -144,7 +136,7 @@ def _get_schema_path(func: Callable[..., Any]) -> Path | None:
 
     folder = parts[0]
     file_stem = parts[1]
-    schema_file = f"{file_stem}_schema.xml"
+    schema_file = f"{file_stem}_schema.json"
 
     return get_strix_resource_path("tools", folder, schema_file)
 
@@ -153,7 +145,7 @@ def register_tool(
     func: Callable[..., Any] | None = None, *, sandbox_execution: bool = True
 ) -> Callable[..., Any]:
     def decorator(f: Callable[..., Any]) -> Callable[..., Any]:
-        func_dict = {
+        func_dict: dict[str, Any] = {
             "name": f.__name__,
             "function": f,
             "module": _get_module_name(f),
@@ -164,27 +156,28 @@ def register_tool(
         if not sandbox_mode:
             try:
                 schema_path = _get_schema_path(f)
-                xml_tools = _load_xml_schema(schema_path) if schema_path else None
+                json_tools = _load_json_schema(schema_path) if schema_path else None
 
-                if xml_tools is not None and f.__name__ in xml_tools:
-                    func_dict["xml_schema"] = xml_tools[f.__name__]
+                if json_tools is not None and f.__name__ in json_tools:
+                    func_dict["json_schema"] = json_tools[f.__name__]
                 else:
-                    func_dict["xml_schema"] = (
-                        f'<tool name="{f.__name__}">'
-                        "<description>Schema not found for tool.</description>"
-                        "</tool>"
-                    )
+                    func_dict["json_schema"] = {
+                        "name": f.__name__,
+                        "description": "Schema not found for tool.",
+                    }
             except (TypeError, FileNotFoundError) as e:
                 logger.warning(f"Error loading schema for {f.__name__}: {e}")
-                func_dict["xml_schema"] = (
-                    f'<tool name="{f.__name__}">'
-                    "<description>Error loading schema.</description>"
-                    "</tool>"
-                )
+                func_dict["json_schema"] = {
+                    "name": f.__name__,
+                    "description": "Error loading schema.",
+                }
 
         if not sandbox_mode:
-            xml_schema = func_dict.get("xml_schema")
-            param_schema = _parse_param_schema(xml_schema if isinstance(xml_schema, str) else "")
+            raw_json_schema = func_dict.get("json_schema")
+            json_schema: dict[str, Any] | None = None
+            if isinstance(raw_json_schema, dict):
+                json_schema = cast(dict[str, Any], raw_json_schema)
+            param_schema = _parse_param_schema(json_schema)
             _tool_param_schemas[str(func_dict["name"])] = param_schema
 
         tools.append(func_dict)
@@ -234,21 +227,25 @@ def get_tools_prompt() -> str:
         module = tool.get("module", "unknown")
         if module not in tools_by_module:
             tools_by_module[module] = []
-        tools_by_module[module].append(tool)
 
-    xml_sections = []
-    for module, module_tools in sorted(tools_by_module.items()):
-        tag_name = f"{module}_tools"
-        section_parts = [f"<{tag_name}>"]
-        for tool in module_tools:
-            tool_xml = tool.get("xml_schema", "")
-            if tool_xml:
-                indented_tool = "\n".join(f"  {line}" for line in tool_xml.split("\n"))
-                section_parts.append(indented_tool)
-        section_parts.append(f"</{tag_name}>")
-        xml_sections.append("\n".join(section_parts))
+        json_schema = tool.get("json_schema", {})
+        if json_schema:
+            tools_by_module[module].append(json_schema)
 
-    return "\n\n".join(xml_sections)
+    return json.dumps(tools_by_module, indent=2)
+
+
+def validate_tool_schema(tool_data: dict[str, Any]) -> ToolDefinition:
+    """Validate a single tool definition against the schema."""
+    return ToolDefinition.model_validate(tool_data)
+
+
+def validate_schema_file(path: Path) -> ToolSchema:
+    """Validate a complete schema file against the Pydantic models."""
+    content = path.read_text()
+    content = _process_dynamic_content(content)
+    schema_data = json.loads(content)
+    return ToolSchema.model_validate(schema_data)
 
 
 def clear_registry() -> None:

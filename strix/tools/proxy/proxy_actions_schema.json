@@ -1,0 +1,293 @@
+{
+  "tools": [
+    {
+      "name": "list_requests",
+      "description": "List and filter proxy requests using HTTPQL with pagination.",
+      "parameters": [
+        {
+          "name": "httpql_filter",
+          "type": "string",
+          "required": false,
+          "description": "HTTPQL filter using Caido's syntax:\n\nInteger fields (port, code, roundtrip, id) - eq, gt, gte, lt, lte, ne:\n- resp.code.eq:200, resp.code.gte:400, req.port.eq:443\n\nText/byte fields (ext, host, method, path, query, raw) - regex:\n- req.method.regex:\"POST\", req.path.regex:\"/api/.*\", req.host.regex:\".*.com\"\n\nDate fields (created_at) - gt, lt with ISO formats:\n- req.created_at.gt:\"2024-01-01T00:00:00Z\"\n\nSpecial: source:intercept, preset:\"name\""
+        },
+        {
+          "name": "start_page",
+          "type": "integer",
+          "required": false,
+          "description": "Starting page (1-based)"
+        },
+        {
+          "name": "end_page",
+          "type": "integer",
+          "required": false,
+          "description": "Ending page (1-based, inclusive)"
+        },
+        {
+          "name": "page_size",
+          "type": "integer",
+          "required": false,
+          "description": "Requests per page"
+        },
+        {
+          "name": "sort_by",
+          "type": "string",
+          "required": false,
+          "description": "Sort field from: \"timestamp\", \"host\", \"status_code\", \"response_time\", \"response_size\""
+        },
+        {
+          "name": "sort_order",
+          "type": "string",
+          "required": false,
+          "description": "Sort direction (\"asc\" or \"desc\")"
+        },
+        {
+          "name": "scope_id",
+          "type": "string",
+          "required": false,
+          "description": "Scope ID to filter requests (use scope_rules to manage scopes)"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing:\n- 'requests': Request objects for page range\n- 'total_count': Total matching requests\n- 'start_page', 'end_page', 'page_size': Query parameters\n- 'returned_count': Requests in response"
+      },
+      "examples": [
+        {
+          "description": "POST requests to API with 200 responses",
+          "params": {
+            "httpql_filter": "req.method.eq:\"POST\" AND req.path.cont:\"/api/\"",
+            "sort_by": "response_time",
+            "scope_id": "scope123"
+          }
+        },
+        {
+          "description": "Requests within specific scope",
+          "params": {
+            "scope_id": "scope123",
+            "sort_by": "timestamp"
+          }
+        }
+      ]
+    },
+    {
+      "name": "view_request",
+      "description": "View request/response data with search and pagination.",
+      "parameters": [
+        {
+          "name": "request_id",
+          "type": "string",
+          "required": true,
+          "description": "Request ID"
+        },
+        {
+          "name": "part",
+          "type": "string",
+          "required": false,
+          "description": "Which part to return (\"request\" or \"response\")"
+        },
+        {
+          "name": "search_pattern",
+          "type": "string",
+          "required": false,
+          "description": "Regex pattern to search content. Common patterns:\n- API endpoints: r\"/api/[a-zA-Z0-9._/-]+\"\n- URLs: r\"https?://[^\\s<>\"']+\"\n- Parameters: r'[?&][a-zA-Z0-9_]+=([^&\\s<>\"']+)'\n- Reflections: input_value in content"
+        },
+        {
+          "name": "page",
+          "type": "integer",
+          "required": false,
+          "description": "Page number for pagination"
+        },
+        {
+          "name": "page_size",
+          "type": "integer",
+          "required": false,
+          "description": "Lines per page"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "With search_pattern (COMPACT):\n- 'matches': [{match, before, after, position}] - max 20\n- 'total_matches': Total found\n- 'truncated': If limited to 20\n\nWithout search_pattern (PAGINATION):\n- 'content': Page content\n- 'page': Current page\n- 'showing_lines': Range display\n- 'has_more': More pages available"
+      },
+      "examples": [
+        {
+          "description": "Find API endpoints in response",
+          "params": {
+            "request_id": "123",
+            "part": "response",
+            "search_pattern": "/api/[a-zA-Z0-9._/-]+"
+          }
+        }
+      ]
+    },
+    {
+      "name": "send_request",
+      "description": "Send a simple HTTP request through proxy.",
+      "parameters": [
+        {
+          "name": "method",
+          "type": "string",
+          "required": true,
+          "description": "HTTP method (GET, POST, etc.)"
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "required": true,
+          "description": "Target URL"
+        },
+        {
+          "name": "headers",
+          "type": "dict",
+          "required": false,
+          "description": "Headers as {\"key\": \"value\"}"
+        },
+        {
+          "name": "body",
+          "type": "string",
+          "required": false,
+          "description": "Request body"
+        },
+        {
+          "name": "timeout",
+          "type": "integer",
+          "required": false,
+          "description": "Request timeout"
+        }
+      ]
+    },
+    {
+      "name": "repeat_request",
+      "description": "Repeat an existing proxy request with modifications for pentesting.\n\nPROPER WORKFLOW:\n1. Use browser_action to browse the target application\n2. Use list_requests() to see captured proxy traffic\n3. Use repeat_request() to modify and test specific requests\n\nThis mirrors real pentesting: browse → capture → modify → test",
+      "parameters": [
+        {
+          "name": "request_id",
+          "type": "string",
+          "required": true,
+          "description": "ID of the original request to repeat (from list_requests)"
+        },
+        {
+          "name": "modifications",
+          "type": "dict",
+          "required": false,
+          "description": "Changes to apply to the original request:\n- \"url\": New URL or modify existing one\n- \"params\": Dict to update query parameters\n- \"headers\": Dict to add/update headers\n- \"body\": New request body (replaces original)\n- \"cookies\": Dict to add/update cookies"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response data with status, headers, body, timing, and request details"
+      },
+      "examples": [
+        {
+          "description": "Modify POST body payload",
+          "params": {
+            "request_id": "req_789",
+            "modifications": "{\"body\": \"{\\\"username\\\":\\\"admin\\\",\\\"password\\\":\\\"admin\\\"}\"}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "scope_rules",
+      "description": "Manage proxy scope patterns for domain/file filtering using Caido's scope system.",
+      "parameters": [
+        {
+          "name": "action",
+          "type": "string",
+          "required": true,
+          "description": "Scope action:\n- get: Get specific scope by ID or list all if no ID\n- update: Update existing scope (requires scope_id and scope_name)\n- list: List all available scopes\n- create: Create new scope (requires scope_name)\n- delete: Delete scope (requires scope_id)"
+        },
+        {
+          "name": "allowlist",
+          "type": "list",
+          "required": false,
+          "description": "Domain patterns to include. Examples: [\"*.example.com\", \"api.test.com\"]"
+        },
+        {
+          "name": "denylist",
+          "type": "list",
+          "required": false,
+          "description": "Patterns to exclude. Some common extensions:\n[\"*.gif\", \"*.jpg\", \"*.png\", \"*.css\", \"*.js\", \"*.ico\", \"*.svg\", \"*woff*\", \"*.ttf\"]"
+        },
+        {
+          "name": "scope_id",
+          "type": "string",
+          "required": false,
+          "description": "Specific scope ID to operate on (required for get, update, delete)"
+        },
+        {
+          "name": "scope_name",
+          "type": "string",
+          "required": false,
+          "description": "Name for scope (required for create, update)"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Depending on action:\n- get: Single scope object or error\n- list: {\"scopes\": [...], \"count\": N}\n- create/update: {\"scope\": {...}, \"message\": \"...\"}\n- delete: {\"message\": \"...\", \"deletedId\": \"...\"}"
+      },
+      "notes": "- Empty allowlist = allow all domains\n- Denylist overrides allowlist\n- Glob patterns: * (any), ? (single), [abc] (one of), [a-z] (range), [^abc] (none of)\n- Each scope has unique ID and can be used with list_requests(scopeId=...)",
+      "examples": [
+        {
+          "description": "Create API-only scope",
+          "params": {
+            "action": "create",
+            "scope_name": "API Testing",
+            "allowlist": "[\"api.example.com\", \"*.api.com\"]",
+            "denylist": "[\"*.gif\", \"*.jpg\", \"*.png\", \"*.css\", \"*.js\"]"
+          }
+        }
+      ]
+    },
+    {
+      "name": "list_sitemap",
+      "description": "View hierarchical sitemap of discovered attack surface from proxied traffic.\n\nPerfect for bug hunters to understand the application structure and identify\ninteresting endpoints, directories, and entry points discovered during testing.",
+      "parameters": [
+        {
+          "name": "scope_id",
+          "type": "string",
+          "required": false,
+          "description": "Scope ID to filter sitemap entries (use scope_rules to get/create scope IDs)"
+        },
+        {
+          "name": "parent_id",
+          "type": "string",
+          "required": false,
+          "description": "ID of parent entry to expand. If None, returns root domains."
+        },
+        {
+          "name": "depth",
+          "type": "string",
+          "required": false,
+          "description": "DIRECT: Only immediate children. ALL: All descendants recursively."
+        },
+        {
+          "name": "page",
+          "type": "integer",
+          "required": false,
+          "description": "Page number for pagination (30 entries per page)"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing:\n- 'entries': List of cleaned sitemap entries\n- 'page', 'total_pages', 'total_count': Pagination info\n- 'has_more': Whether more pages available\n- Each entry: id, kind, label, hasDescendants, request (method/path/status only)"
+      },
+      "notes": "Entry kinds:\n- DOMAIN: Root domains (example.com)\n- DIRECTORY: Path directories (/api/, /admin/)\n- REQUEST: Individual endpoints\n- REQUEST_BODY: POST/PUT body variations\n- REQUEST_QUERY: GET parameter variations\n\nCheck hasDescendants=true to identify entries worth expanding.\nUse parent_id from any entry to drill down into subdirectories."
+    },
+    {
+      "name": "view_sitemap_entry",
+      "description": "Get detailed information about a specific sitemap entry and related requests.\n\nPerfect for understanding what's been discovered under a specific directory\nor endpoint, including all related requests and response codes.",
+      "parameters": [
+        {
+          "name": "entry_id",
+          "type": "string",
+          "required": true,
+          "description": "ID of the sitemap entry to examine"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing:\n- 'entry': Complete entry details including metadata\n- Entry contains 'requests' with all related HTTP requests\n- Shows request methods, paths, response codes, timing"
+      }
+    }
+  ]
+}

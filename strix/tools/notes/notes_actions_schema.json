@@ -1,0 +1,184 @@
+{
+  "tools": [
+    {
+      "name": "create_note",
+      "description": "Create a personal note for observations, findings, and research during the scan.",
+      "details": "Use this tool for documenting discoveries, observations, methodology notes, and questions.\nThis is your personal notepad for recording information you want to remember or reference later.\nFor tracking actionable tasks, use the todo tool instead.",
+      "parameters": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "description": "Title of the note"
+        },
+        {
+          "name": "content",
+          "type": "string",
+          "required": true,
+          "description": "Content of the note"
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "required": false,
+          "description": "Category to organize the note (default: \"general\", \"findings\", \"methodology\", \"questions\", \"plan\")"
+        },
+        {
+          "name": "tags",
+          "type": "string",
+          "required": false,
+          "description": "Tags for categorization"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing: - note_id: ID of the created note - success: Whether the note was created successfully"
+      },
+      "examples": [
+        {
+          "description": "Document an interesting finding",
+          "params": {
+            "title": "Interesting Directory Found",
+            "content": "Found /backup/ directory that might contain sensitive files. Directory listing seems disabled but worth investigating further.",
+            "category": "findings",
+            "tags": "[\"directory\", \"backup\"]"
+          }
+        },
+        {
+          "description": "Methodology note",
+          "params": {
+            "title": "Authentication Flow Analysis",
+            "content": "The application uses JWT tokens stored in localStorage. Token expiration is set to 24 hours. Observed that refresh token rotation is not implemented.",
+            "category": "methodology",
+            "tags": "[\"auth\", \"jwt\", \"session\"]"
+          }
+        },
+        {
+          "description": "Research question",
+          "params": {
+            "title": "Custom Header Investigation",
+            "content": "The API returns a custom X-Request-ID header. Need to research if this could be used for user tracking or has any security implications.",
+            "category": "questions",
+            "tags": "[\"headers\", \"research\"]"
+          }
+        }
+      ]
+    },
+    {
+      "name": "delete_note",
+      "description": "Delete a note.",
+      "parameters": [
+        {
+          "name": "note_id",
+          "type": "string",
+          "required": true,
+          "description": "ID of the note to delete"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing: - success: Whether the note was deleted successfully"
+      },
+      "examples": [
+        {
+          "description": "Delete a note by ID",
+          "params": {
+            "note_id": "note_123"
+          }
+        }
+      ]
+    },
+    {
+      "name": "list_notes",
+      "description": "List existing notes with optional filtering and search.",
+      "parameters": [
+        {
+          "name": "category",
+          "type": "string",
+          "required": false,
+          "description": "Filter by category"
+        },
+        {
+          "name": "tags",
+          "type": "string",
+          "required": false,
+          "description": "Filter by tags (returns notes with any of these tags)"
+        },
+        {
+          "name": "search",
+          "type": "string",
+          "required": false,
+          "description": "Search query to find in note titles and content"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing: - notes: List of matching notes - total_count: Total number of notes found"
+      },
+      "examples": [
+        {
+          "description": "List all findings",
+          "params": {
+            "category": "findings"
+          }
+        },
+        {
+          "description": "Search for SQL injection related notes",
+          "params": {
+            "search": "SQL injection"
+          }
+        },
+        {
+          "description": "Search within a specific category",
+          "params": {
+            "search": "admin",
+            "category": "findings"
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_note",
+      "description": "Update an existing note.",
+      "parameters": [
+        {
+          "name": "note_id",
+          "type": "string",
+          "required": true,
+          "description": "ID of the note to update"
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false,
+          "description": "New title for the note"
+        },
+        {
+          "name": "content",
+          "type": "string",
+          "required": false,
+          "description": "New content for the note"
+        },
+        {
+          "name": "tags",
+          "type": "string",
+          "required": false,
+          "description": "New tags for the note"
+        }
+      ],
+      "returns": {
+        "type": "Dict[str, Any]",
+        "description": "Response containing: - success: Whether the note was updated successfully"
+      },
+      "examples": [
+        {
+          "description": "Update note content",
+          "params": {
+            "note_id": "note_123",
+            "content": "Updated content with new findings..."
+          }
+        }
+      ]
+    }
+  ]
+}
