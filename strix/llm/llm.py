@@ -139,31 +139,22 @@ class LLM:
 
         self._total_stats.requests += 1
         completion_args = self._build_completion_args(messages)
-        
-        if metadata := completion_args.get("metadata"):
-            trace_id = metadata.get("trace_id", "none")
-            logger.info(f"Trace ID for grouping: {trace_id}")
-        
+                
         response = await acompletion(**completion_args, stream=True)
 
         async for chunk in response:
-            chunks.append(chunk)  # Always save chunks for stats and callbacks
+            chunks.append(chunk)
             delta = self._get_chunk_content(chunk)
             if delta:
                 accumulated += delta
                 if "</function>" in accumulated and not found_function:
                     found_function = True
-                    # Extract just the function call
                     func_content = accumulated[
                         : accumulated.find("</function>") + len("</function>")
                     ]
                     yield LLMResponse(content=func_content)
-                    # Don't break - continue consuming to ensure callbacks fire
                 elif not found_function:
-                    # Yield incremental updates until function is found
                     yield LLMResponse(content=accumulated)
-            # After finding function, continue consuming chunks silently
-            # This ensures the generator is fully consumed for LiteLLM callbacks
 
         if chunks:
             self._update_usage_stats(stream_chunk_builder(chunks))
@@ -222,7 +213,7 @@ class LLM:
             if tracer:
                 run_id = tracer.run_id
                 
-                metadata["$ai_trace_id"] = run_id  # PostHog's expected property name
+                metadata["$ai_trace_id"] = run_id
                 metadata["user_id"] = run_id
 
                 if self.agent_id:

@@ -187,7 +187,6 @@ def check_duplicate(
         if api_base:
             completion_kwargs["api_base"] = api_base
 
-        # Add metadata for PostHog trace grouping - CRITICAL for grouping all LLM calls
         try:
             from strix.telemetry.tracer import get_global_tracer
             
@@ -195,13 +194,12 @@ def check_duplicate(
             if tracer:
                 run_id = tracer.run_id
                 completion_kwargs["metadata"] = {
-                    "trace_id": run_id,  # Maps to $ai_trace_id in PostHog
                     "user_id": run_id,
                     "$ai_trace_id": run_id
                 }
         except Exception:
-            pass  # If tracer not available, continue without trace_id
-
+            pass
+        
         response = litellm.completion(**completion_kwargs)
 
         content = response.choices[0].message.content

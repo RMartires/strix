@@ -34,7 +34,7 @@ def _is_enabled() -> bool:
 
 
 def configure_litellm_posthog() -> None:
-    """Configure LiteLLM to send LLM traces to Instance B (LLM Analytics)."""
+    """Configure LiteLLM to send LLM traces to env postHog account."""
 
     shouldSendTraceToPostHog = _POSTHOG_LLM_API_KEY is not None or _POSTHOG_LLM_HOST is not None
 
@@ -88,19 +88,19 @@ def _send(event: str, properties: dict[str, Any]) -> None:
         return
     try:
         payload = {
-            "api_key": _POSTHOG_PRIMARY_API_KEY,  # Use primary instance for custom events
+            "api_key": _POSTHOG_PRIMARY_API_KEY,
             "event": event,
             "distinct_id": _SESSION_ID,
             "properties": properties,
         }
         req = urllib.request.Request(  # noqa: S310
-            f"{_POSTHOG_PRIMARY_HOST}/capture/",  # Use primary host
+            f"{_POSTHOG_PRIMARY_HOST}/capture/",
             data=json.dumps(payload).encode(),
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=10):  # noqa: S310  # nosec B310
             pass
-        logger.debug(f"Sent custom event '{event}' to Instance A (Primary)")
+        logger.debug(f"Sent custom event '{event}' to hardcoded posthog account")
     except Exception:  # noqa: BLE001, S110
         pass  # nosec B110
 

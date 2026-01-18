@@ -111,7 +111,6 @@ def _summarize_messages(
             "timeout": timeout,
         }
 
-        # Add metadata for PostHog trace grouping - CRITICAL for grouping all LLM calls
         try:
             from strix.telemetry.tracer import get_global_tracer
             
@@ -119,13 +118,12 @@ def _summarize_messages(
             if tracer:
                 run_id = tracer.run_id
                 completion_args["metadata"] = {
-                    "trace_id": run_id,  # Maps to $ai_trace_id in PostHog
                     "user_id": run_id,
                     "$ai_trace_id": run_id,
                 }
         except Exception:
-            pass  # If tracer not available, continue without trace_id
-
+            pass
+        
         response = litellm.completion(**completion_args)
         summary = response.choices[0].message.content or ""
         if not summary.strip():
