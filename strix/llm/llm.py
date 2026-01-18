@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import os
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any
@@ -9,6 +11,8 @@ from litellm import acompletion, completion_cost, stream_chunk_builder, supports
 from litellm.utils import supports_prompt_caching, supports_vision
 
 from strix.config import Config
+
+logger = logging.getLogger(__name__)
 from strix.llm.config import LLMConfig
 from strix.llm.memory_compressor import MemoryCompressor
 from strix.llm.utils import (
@@ -17,6 +21,7 @@ from strix.llm.utils import (
     parse_tool_invocations,
 )
 from strix.skills import load_skills
+from strix.telemetry import posthog
 from strix.tools import get_tools_prompt
 from strix.utils.resource_paths import get_strix_resource_path
 
@@ -74,6 +79,8 @@ class LLM:
         else:
             self._reasoning_effort = "high"
 
+        posthog.configure_litellm_posthog()
+
     def _load_system_prompt(self, agent_name: str | None) -> str:
         if not agent_name:
             return ""
@@ -128,22 +135,36 @@ class LLM:
     async def _stream(self, messages: list[dict[str, Any]]) -> AsyncIterator[LLMResponse]:
         accumulated = ""
         chunks: list[Any] = []
+        found_function = False
 
         self._total_stats.requests += 1
-        response = await acompletion(**self._build_completion_args(messages), stream=True)
+        completion_args = self._build_completion_args(messages)
+        
+        # Log trace_id if present for debugging trace grouping
+        if metadata := completion_args.get("metadata"):
+            trace_id = metadata.get("trace_id", "none")
+            logger.info(f"Trace ID for grouping: {trace_id}")
+        
+        response = await acompletion(**completion_args, stream=True)
 
         async for chunk in response:
-            chunks.append(chunk)
+            chunks.append(chunk)  # Always save chunks for stats and callbacks
             delta = self._get_chunk_content(chunk)
             if delta:
                 accumulated += delta
-                if "</function>" in accumulated:
-                    accumulated = accumulated[
+                if "</function>" in accumulated and not found_function:
+                    found_function = True
+                    # Extract just the function call
+                    func_content = accumulated[
                         : accumulated.find("</function>") + len("</function>")
                     ]
+                    yield LLMResponse(content=func_content)
+                    # Don't break - continue consuming to ensure callbacks fire
+                elif not found_function:
+                    # Yield incremental updates until function is found
                     yield LLMResponse(content=accumulated)
-                    break
-                yield LLMResponse(content=accumulated)
+            # After finding function, continue consuming chunks silently
+            # This ensures the generator is fully consumed for LiteLLM callbacks
 
         if chunks:
             self._update_usage_stats(stream_chunk_builder(chunks))
@@ -192,6 +213,38 @@ class LLM:
             "timeout": self.config.timeout,
             "stream_options": {"include_usage": True},
         }
+
+        # Add metadata with trace_id to group all LLM calls from one run
+        metadata: dict[str, Any] = {}
+        
+        # Get trace_id from global tracer to group all calls from one agent run
+        try:
+            from strix.telemetry.tracer import get_global_tracer
+            
+            tracer = get_global_tracer()
+            if tracer:
+                # Use run_id as both trace_id and user_id for consistent grouping
+                run_id = tracer.run_id
+                
+                # CRITICAL: LiteLLM maps 'trace_id' in metadata to PostHog's $ai_trace_id
+                # This is REQUIRED for trace grouping - all events with same trace_id are grouped
+                metadata["trace_id"] = run_id
+                
+                # Set consistent user_id/distinct_id so all calls belong to same person
+                # LiteLLM uses user_id from metadata to set distinct_id
+                metadata["user_id"] = run_id
+
+                metadata["$ai_trace_id"] = run_id
+
+                if self.agent_id:
+                    metadata["agent_id"] = self.agent_id
+                if self.agent_name:
+                    metadata["agent_name"] = self.agent_name
+        except Exception:
+            pass  # If tracer not available, continue without trace_id
+        
+        if metadata:
+            args["metadata"] = metadata
 
         if api_key := Config.get("llm_api_key"):
             args["api_key"] = api_key

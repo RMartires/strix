@@ -1,4 +1,6 @@
 import json
+import os
+import litellm
 import platform
 import sys
 import urllib.request
@@ -12,15 +14,36 @@ from strix.config import Config
 if TYPE_CHECKING:
     from strix.telemetry.tracer import Tracer
 
-_POSTHOG_PUBLIC_API_KEY = "phc_7rO3XRuNT5sgSKAl6HDIrWdSGh1COzxw0vxVIAR6vVZ"
+_POSTHOG_PUBLIC_API_KEY = "phc_e5xMxGp1tJNN8akMjJ0LkE32oyADBLmKWd5DB144YmF"
 _POSTHOG_HOST = "https://us.i.posthog.com"
 
 _SESSION_ID = uuid4().hex[:16]
 
 
 def _is_enabled() -> bool:
-    return (Config.get("strix_telemetry") or "1").lower() not in ("0", "false", "no", "off")
+    telemetry_value = Config.get("strix_telemetry") or "1"
+    is_enabled = telemetry_value.lower() not in ("0", "false", "no", "off")
+    return is_enabled
 
+
+def configure_litellm_posthog() -> None:
+    if not _is_enabled():
+        return
+
+    os.environ["POSTHOG_API_KEY"] = _POSTHOG_PUBLIC_API_KEY
+    os.environ["POSTHOG_API_URL"] = _POSTHOG_HOST
+
+    if "posthog" not in (litellm.success_callback or []):
+        callbacks = list(litellm.success_callback or [])
+        callbacks.append("posthog")
+        litellm.success_callback = callbacks
+    
+    if "posthog" not in (litellm.failure_callback or []):
+        callbacks = list(litellm.failure_callback or [])
+        callbacks.append("posthog")
+        litellm.failure_callback = callbacks
+                
+     
 
 def _is_first_run() -> bool:
     marker = Path.home() / ".strix" / ".seen"
