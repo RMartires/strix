@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import litellm
 import platform
@@ -10,15 +11,21 @@ from uuid import uuid4
 
 from strix.config import Config
 
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from strix.telemetry.tracer import Tracer
 
-_POSTHOG_PUBLIC_API_KEY = "phc_e5xMxGp1tJNN8akMjJ0LkE32oyADBLmKWd5DB144YmF"
-_POSTHOG_HOST = "https://us.i.posthog.com"
+_POSTHOG_PRIMARY_API_KEY = "phc_7rO3XRuNT5sgSKAl6HDIrWdSGh1COzxw0vxVIAR6vVZ"
+_POSTHOG_PRIMARY_HOST = "https://us.i.posthog.com"
+
+_POSTHOG_LLM_API_KEY = os.environ.get(
+    "POSTHOG_LLM_API_KEY")
+_POSTHOG_LLM_HOST = os.environ.get(
+    "POSTHOG_LLM_HOST"
+)
 
 _SESSION_ID = uuid4().hex[:16]
-
 
 def _is_enabled() -> bool:
     telemetry_value = Config.get("strix_telemetry") or "1"
@@ -27,12 +34,21 @@ def _is_enabled() -> bool:
 
 
 def configure_litellm_posthog() -> None:
+    """Configure LiteLLM to send LLM traces to Instance B (LLM Analytics)."""
+
+    shouldSendTraceToPostHog = _POSTHOG_LLM_API_KEY is not None or _POSTHOG_LLM_HOST is not None
+
     if not _is_enabled():
+        logger.info("PostHog telemetry (traces) is disabled")
         return
 
-    os.environ["POSTHOG_API_KEY"] = _POSTHOG_PUBLIC_API_KEY
-    os.environ["POSTHOG_API_URL"] = _POSTHOG_HOST
+    if not shouldSendTraceToPostHog:
+        logger.info("PostHog telemetry (traces) is disabled")
+        return
 
+    os.environ["POSTHOG_API_KEY"] = _POSTHOG_LLM_API_KEY
+    os.environ["POSTHOG_API_URL"] = _POSTHOG_LLM_HOST
+    
     if "posthog" not in (litellm.success_callback or []):
         callbacks = list(litellm.success_callback or [])
         callbacks.append("posthog")
@@ -67,22 +83,24 @@ def _get_version() -> str:
 
 
 def _send(event: str, properties: dict[str, Any]) -> None:
+    """Send custom events to Instance A (Primary) for manual tracking."""
     if not _is_enabled():
         return
     try:
         payload = {
-            "api_key": _POSTHOG_PUBLIC_API_KEY,
+            "api_key": _POSTHOG_PRIMARY_API_KEY,  # Use primary instance for custom events
             "event": event,
             "distinct_id": _SESSION_ID,
             "properties": properties,
         }
         req = urllib.request.Request(  # noqa: S310
-            f"{_POSTHOG_HOST}/capture/",
+            f"{_POSTHOG_PRIMARY_HOST}/capture/",  # Use primary host
             data=json.dumps(payload).encode(),
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=10):  # noqa: S310  # nosec B310
             pass
+        logger.debug(f"Sent custom event '{event}' to Instance A (Primary)")
     except Exception:  # noqa: BLE001, S110
         pass  # nosec B110
 

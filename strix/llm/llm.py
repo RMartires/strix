@@ -140,7 +140,6 @@ class LLM:
         self._total_stats.requests += 1
         completion_args = self._build_completion_args(messages)
         
-        # Log trace_id if present for debugging trace grouping
         if metadata := completion_args.get("metadata"):
             trace_id = metadata.get("trace_id", "none")
             logger.info(f"Trace ID for grouping: {trace_id}")
@@ -214,35 +213,24 @@ class LLM:
             "stream_options": {"include_usage": True},
         }
 
-        # Add metadata with trace_id to group all LLM calls from one run
         metadata: dict[str, Any] = {}
         
-        # Get trace_id from global tracer to group all calls from one agent run
         try:
             from strix.telemetry.tracer import get_global_tracer
             
             tracer = get_global_tracer()
             if tracer:
-                # Use run_id as both trace_id and user_id for consistent grouping
                 run_id = tracer.run_id
                 
-                # CRITICAL: LiteLLM maps 'trace_id' in metadata to PostHog's $ai_trace_id
-                # This is REQUIRED for trace grouping - all events with same trace_id are grouped
-                metadata["trace_id"] = run_id
-                
-                # Set consistent user_id/distinct_id so all calls belong to same person
-                # LiteLLM uses user_id from metadata to set distinct_id
+                metadata["$ai_trace_id"] = run_id  # PostHog's expected property name
                 metadata["user_id"] = run_id
-
-                metadata["$ai_trace_id"] = run_id
 
                 if self.agent_id:
                     metadata["agent_id"] = self.agent_id
                 if self.agent_name:
                     metadata["agent_name"] = self.agent_name
         except Exception:
-            pass  # If tracer not available, continue without trace_id
-        
+            pass  
         if metadata:
             args["metadata"] = metadata
 
