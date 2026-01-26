@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any
@@ -18,8 +19,12 @@ from strix.llm.utils import (
     parse_tool_invocations,
 )
 from strix.skills import load_skills
+from strix.telemetry import posthog
 from strix.tools import get_tools_prompt
 from strix.utils.resource_paths import get_strix_resource_path
+
+
+logger = logging.getLogger(__name__)
 
 
 litellm.drop_params = True
@@ -74,6 +79,11 @@ class LLM:
             self._reasoning_effort = "medium"
         else:
             self._reasoning_effort = "high"
+
+        try:
+            posthog.configure_litellm_posthog()
+        except Exception as e:
+            logger.error(f"Could not config posthog traces: {e}")            
 
     def _load_system_prompt(self, agent_name: str | None) -> str:
         if not agent_name:
@@ -209,6 +219,36 @@ class LLM:
             args["api_key"] = self.config.api_key
         if self.config.api_base:
             args["api_base"] = self.config.api_base
+        metadata: dict[str, Any] = {}
+
+        try:
+            from strix.telemetry.tracer import get_global_tracer
+
+            tracer = get_global_tracer()
+            if tracer:
+                run_id = tracer.run_id
+
+                metadata["$ai_trace_id"] = run_id
+                metadata["user_id"] = run_id
+
+                if self.agent_id:
+                    metadata["agent_id"] = self.agent_id
+                if self.agent_name:
+                    metadata["agent_name"] = self.agent_name
+        except Exception as e:
+            logger.error(f"Could not set trace metadata: {e}")
+        if metadata:
+            args["metadata"] = metadata
+
+        if api_key := Config.get("llm_api_key"):
+            args["api_key"] = api_key
+        if api_base := (
+            Config.get("llm_api_base")
+            or Config.get("openai_api_base")
+            or Config.get("litellm_base_url")
+            or Config.get("ollama_api_base")
+        ):
+            args["api_base"] = api_base
         if self._supports_reasoning():
             args["reasoning_effort"] = self._reasoning_effort
 
