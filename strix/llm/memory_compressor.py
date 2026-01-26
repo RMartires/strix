@@ -111,6 +111,19 @@ def _summarize_messages(
             "timeout": timeout,
         }
 
+        try:
+            from strix.telemetry.tracer import get_global_tracer
+
+            tracer = get_global_tracer()
+            if tracer:
+                run_id = tracer.run_id
+                completion_args["metadata"] = {
+                    "user_id": run_id,
+                    "$ai_trace_id": run_id,
+                }
+        except Exception as e:
+            logger.error(f"Could not set trace metadata: {e}")
+
         response = litellm.completion(**completion_args)
         summary = response.choices[0].message.content or ""
         if not summary.strip():
