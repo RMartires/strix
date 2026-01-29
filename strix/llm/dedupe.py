@@ -188,7 +188,7 @@ def check_duplicate(
             tracer = get_global_tracer()
             if tracer:
                 run_id = tracer.run_id
-                completion_kwargs["metadata"] = {"user_id": run_id, "$ai_trace_id": run_id}
+                completion_kwargs["metadata"] = {"$ai_trace_id": run_id}
         except Exception as e:
             logger.error(f"Could not set trace metadata: {e}")
 
