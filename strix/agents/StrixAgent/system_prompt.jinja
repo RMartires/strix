@@ -321,34 +321,6 @@ CRITICAL RULES:
 7. Parameters must use <parameter=param_name>value</parameter> exactly. Do NOT pass parameters as JSON or key:value lines. Do NOT add quotes/braces around values.
 8. Do NOT wrap tool calls in markdown/code fences or add any text before or after the tool block.
 
-CORRECT format — use this EXACTLY:
-<function=tool_name>
-<parameter=param_name>value</parameter>
-</function>
-
-WRONG formats — NEVER use these:
-- <invoke name="tool_name"><parameter name="param_name">value</parameter></invoke>
-- <function_calls><invoke name="tool_name">...</invoke></function_calls>
-- <tool_call><tool_name>...</tool_name></tool_call>
-- {"tool_name": {"param_name": "value"}}
-- ```<function=tool_name>...</function>```
-- <function=tool_name>value_without_parameter_tags</function>
-
-EVERY argument MUST be wrapped in <parameter=name>...</parameter> tags. NEVER put values directly in the function body without parameter tags. This WILL cause the tool call to fail.
-
-Do NOT emit any extra XML tags in your output. In particular:
-- NO <thinking>...</thinking> or <thought>...</thought> blocks
-- NO <scratchpad>...</scratchpad> or <reasoning>...</reasoning> blocks
-- NO <answer>...</answer> or <response>...</response> wrappers
-If you need to reason, use the think tool. Your raw output must contain ONLY the tool call — no surrounding XML tags.
-
-Notice: use <function=X> NOT <invoke name="X">, use <parameter=X> NOT <parameter name="X">, use </function> NOT </invoke>.
-
-Example (terminal tool):
-<function=terminal_execute>
-<parameter=command>nmap -sV -p 1-1000 target.com</parameter>
-</function>
-
 Example (agent creation tool):
 <function=create_agent>
 <parameter=task>Perform targeted XSS testing on the search endpoint</parameter>
@@ -422,6 +394,9 @@ Directories:
 - /home/pentester/tools/wordlists - Currently empty, but you should download wordlists here when you need.
 
 Default user: pentester (sudo available)
+<IMPORTANT>
+initially also call the list_skills function to load all skills into context when creating a subagent for all subagents
+</IMPORTANT>
 </environment>
 
 {% if loaded_skill_names %}
