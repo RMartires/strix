@@ -147,9 +147,13 @@ def load_skills(
                 "warnings": [],
             }
 
-        validation = validate_skill_names(skill_list)
-        invalid_skills = validation.get("invalid", [])
-        valid_skills = validation.get("valid", [])
+        def _bare_name(s: str) -> str:
+            return s.split("/")[-1]
+
+        validation = validate_skill_names([_bare_name(s) for s in skill_list])
+        invalid_bare = set(validation.get("invalid", []))
+        valid_skills = [s for s in skill_list if _bare_name(s) not in invalid_bare]
+        invalid_skills = [s for s in skill_list if _bare_name(s) in invalid_bare]
 
         warnings: list[str] = []
         if invalid_skills:
@@ -167,13 +171,19 @@ def load_skills(
         if missing_skills:
             warnings.append(f"Some skills could not be loaded: {', '.join(missing_skills)}")
 
-        return {
+        result: dict[str, Any] = {
             "success": len(loaded_content) > 0,
             "loaded_skills": loaded_content,
             "loaded_count": len(loaded_content),
             "invalid_skills": invalid_skills,
             "warnings": warnings,
         }
+        if not result["success"] and not loaded_content:
+            result["error"] = (
+                "No skills could be loaded. "
+                + (warnings[0] if warnings else "Check skill names with list_skills.")
+            )
+        return result
     except Exception as e:  # noqa: BLE001
         return {
             "success": False,
